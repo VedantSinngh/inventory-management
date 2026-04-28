@@ -1,0 +1,205 @@
+:root {
+  --color-bg-primary: #000000;
+  --color-bg-secondary: #0D0D0D;
+  --color-bg-card: #1A1A1A;
+  --color-border: #2E2E2E;
+  --color-text-muted: #5C5C5C;
+  --color-text-secondary: #A3A3A3;
+  --color-text-primary: #E5E5E5;
+  --color-text-heading: #FFFFFF;
+  --color-accent: #FFFFFF;
+  
+  --font-heading: 'Bebas Neue', sans-serif;
+  --font-body: 'IBM Plex Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  color: var(--color-text-heading);
+  letter-spacing: 0.1em;
+  font-weight: normal;
+}
+
+a {
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+/* Base button styles */
+button {
+  cursor: pointer;
+  font-family: var(--font-body);
+  border: none;
+  background: none;
+  color: var(--color-text-primary);
+  transition: all 150ms ease;
+}
+
+/* Inputs */
+input, select, textarea {
+  font-family: var(--font-body);
+  background-color: var(--color-bg-card);
+  color: var(--color-text-heading);
+  border: none;
+  border-bottom: 1px solid var(--color-text-muted);
+  padding: 8px 12px;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-bottom: 1px solid var(--color-accent);
+}
+
+input:disabled, select:disabled, textarea:disabled {
+  background-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+/* Shared utilities */
+.card {
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  padding: 20px;
+}
+
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  font-family: var(--font-heading);
+  color: var(--color-text-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 18px; /* Slightly adjusted scale for table heading */
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+td {
+  font-size: 13px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+tbody tr:nth-child(even) {
+  background-color: var(--color-bg-secondary);
+}
+
+tbody tr:nth-child(odd) {
+  background-color: var(--color-bg-primary);
+}
+
+tbody tr:hover {
+  background-color: var(--color-border);
+}
+
+tbody tr.selected {
+  border-left: 2px solid var(--color-accent);
+}
+
+/* Buttons in standard state */
+.btn-outline {
+  border: 1px solid var(--color-accent);
+  background: transparent;
+  color: var(--color-accent);
+  padding: 6px 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.btn-outline:hover {
+  background-color: var(--color-accent);
+  color: var(--color-bg-primary);
+}
+
+.btn-solid {
+  background-color: var(--color-accent);
+  color: var(--color-bg-primary);
+  font-weight: bold;
+  padding: 10px 20px;
+  font-size: 15px;
+}
+
+.btn-solid:hover {
+  transform: scale(1.02);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: bold;
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+  background: transparent;
+}
+
+.badge.solid {
+  background-color: var(--color-accent);
+  color: var(--color-bg-primary);
+}
+
+.pulsing-dot {
+  width: 8px;
+  height: 8px;
+  background-color: var(--color-accent);
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 1; }
+  50% { transform: scale(1); opacity: 0.3; }
+  100% { transform: scale(0.95); opacity: 1; }
+}
+
+.input-error {
+  border-bottom: 1px solid var(--color-accent) !important;
+}
+
+.error-message {
+  color: var(--color-accent);
+  font-size: 11px;
+  font-style: italic;
+  display: block;
+  margin-top: 4px;
+}
+
+.alert-banner {
+  background-color: var(--color-accent);
+  color: var(--color-bg-primary);
+  font-weight: bold;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
