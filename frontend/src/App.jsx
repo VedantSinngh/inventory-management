@@ -8,6 +8,9 @@ import Login from './pages/Login';
 import { Package, ShoppingCart, LayoutDashboard, LogOut, Warehouse } from 'lucide-react';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import { InventoryProvider, InventoryContext } from './context/InventoryContext';
+import { ToastProvider } from './context/ToastContext';
+import ErrorBoundary from './components/ErrorBoundary';
+import ToastContainer from './components/ToastContainer';
 
 const Sidebar = () => {
   const location = useLocation();
@@ -86,26 +89,49 @@ const Layout = ({ children }) => {
 };
 
 const ProtectedRoute = ({ children }) => {
-  const { user } = useContext(AuthContext);
+  const { user, loading } = useContext(AuthContext);
+  
+  // Show nothing while loading to prevent redirect flash
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        backgroundColor: 'var(--color-bg-primary)'
+      }}>
+        <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+          <div style={{ fontSize: '18px', marginBottom: '10px' }}>Loading...</div>
+        </div>
+      </div>
+    );
+  }
+  
   if (!user) return <Navigate to="/login" replace />;
   return <Layout>{children}</Layout>;
 };
 
 function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <InventoryProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
-            <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
-            <Route path="/warehouses" element={<ProtectedRoute><Warehouses /></ProtectedRoute>} />
-          </Routes>
-        </InventoryProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <ToastProvider>
+            <InventoryProvider>
+              <ToastContainer />
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+                <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
+                <Route path="/warehouses" element={<ProtectedRoute><Warehouses /></ProtectedRoute>} />
+              </Routes>
+            </InventoryProvider>
+          </ToastProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

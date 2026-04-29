@@ -8,5 +8,12 @@ const auditLogSchema = new mongoose.Schema({
   details: { type: mongoose.Schema.Types.Mixed },
 }, { timestamps: true });
 
+// Indexes for audit log queries - critical for performance
+auditLogSchema.index({ user: 1, createdAt: -1 });
+auditLogSchema.index({ entityType: 1, entityId: 1, createdAt: -1 });
+auditLogSchema.index({ action: 1, createdAt: -1 });
+auditLogSchema.index({ createdAt: -1 }); // For time-range queries
+
 const AuditLog = mongoose.model('AuditLog', auditLogSchema);
 export default AuditLog;
+

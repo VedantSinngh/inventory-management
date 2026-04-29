@@ -4,7 +4,7 @@ import { InventoryContext } from '../context/InventoryContext';
 const EditModal = ({ isOpen, onClose, onSave, product }) => {
   const { warehouses } = useContext(InventoryContext);
   const [formData, setFormData] = useState({
-    name: '', sku: '', category: '', price: '', stock: '', lowStockThreshold: '', warehouse: ''
+    name: '', sku: '', category: '', price: '', stock: '', lowStockThreshold: '', warehouse: '', supplier: ''
   });
   const [errors, setErrors] = useState({});
 
@@ -17,35 +17,14 @@ const EditModal = ({ isOpen, onClose, onSave, product }) => {
         price: product.price || '',
         stock: product.stock || '',
         lowStockThreshold: product.lowStockThreshold || 10,
-        warehouse: product.warehouse?._id || product.warehouse || ''
+        warehouse: product.warehouse?._id || product.warehouse || '',
+        supplier: product.supplier || ''
       });
     } else {
-      setFormData({ name: '', sku: '', category: '', price: '', stock: '', lowStockThreshold: 10, warehouse: '' });
+      setFormData({ name: '', sku: '', category: '', price: '', stock: '', lowStockThreshold: 10, warehouse: '', supplier: '' });
     }
+    setErrors({});
   }, [product, isOpen]);
-// ... (rest of logic unchanged except the form fields)
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>CATEGORY</label>
-              <input 
-                value={formData.category} 
-                onChange={e => setFormData({...formData, category: e.target.value})}
-              />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>WAREHOUSE</label>
-              <select 
-                value={formData.warehouse} 
-                onChange={e => setFormData({...formData, warehouse: e.target.value})}
-                style={{ appearance: 'none' }}
-              >
-                <option value="">-- UNASSIGNED --</option>
-                {warehouses.map(w => (
-                  <option key={w._id} value={w._id}>{w.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
 
   if (!isOpen) return null;
 
@@ -71,27 +50,29 @@ const EditModal = ({ isOpen, onClose, onSave, product }) => {
       backgroundColor: 'rgba(0, 0, 0, 0.8)', zIndex: 1000,
       display: 'flex', alignItems: 'center', justifyContent: 'center'
     }}>
-      <div className="card" style={{ width: '100%', maxWidth: '500px' }}>
+      <div className="card" style={{ width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
         <h3 style={{ fontSize: '24px', marginBottom: '20px' }}>{product ? 'EDIT PRODUCT' : 'NEW PRODUCT'}</h3>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>PRODUCT NAME</label>
+            <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>PRODUCT NAME *</label>
             <input 
               value={formData.name} 
               onChange={e => setFormData({...formData, name: e.target.value})}
               className={errors.name ? 'input-error' : ''}
+              placeholder="Enter product name"
             />
             {errors.name && <span className="error-message">{errors.name}</span>}
           </div>
 
           <div style={{ display: 'flex', gap: '16px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>SKU</label>
+              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>SKU *</label>
               <input 
                 value={formData.sku} 
-                onChange={e => setFormData({...formData, sku: e.target.value})}
+                onChange={e => setFormData({...formData, sku: e.target.value.toUpperCase()})}
                 className={errors.sku ? 'input-error' : ''}
+                placeholder="e.g., PROD-001"
               />
               {errors.sku && <span className="error-message">{errors.sku}</span>}
             </div>
@@ -100,29 +81,72 @@ const EditModal = ({ isOpen, onClose, onSave, product }) => {
               <input 
                 value={formData.category} 
                 onChange={e => setFormData({...formData, category: e.target.value})}
+                placeholder="e.g., Electronics"
               />
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: '16px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>PRICE</label>
+              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>PRICE *</label>
               <input 
                 type="number"
+                step="0.01"
+                min="0"
                 value={formData.price} 
                 onChange={e => setFormData({...formData, price: e.target.value})}
                 className={errors.price ? 'input-error' : ''}
+                placeholder="0.00"
               />
               {errors.price && <span className="error-message">{errors.price}</span>}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>STOCK QUANTITY</label>
+              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>CURRENT STOCK</label>
               <input 
                 type="number"
+                min="0"
                 value={formData.stock} 
                 onChange={e => setFormData({...formData, stock: e.target.value})}
+                disabled={product ? true : false}
+                placeholder="Stock is managed via orders"
+              />
+              {product && <span style={{ fontSize: '10px', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>Stock is managed via order creation</span>}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>LOW STOCK THRESHOLD</label>
+              <input 
+                type="number"
+                min="0"
+                value={formData.lowStockThreshold} 
+                onChange={e => setFormData({...formData, lowStockThreshold: e.target.value})}
+                placeholder="10"
               />
             </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>WAREHOUSE</label>
+              <select 
+                value={formData.warehouse} 
+                onChange={e => setFormData({...formData, warehouse: e.target.value})}
+                style={{ appearance: 'none' }}
+              >
+                <option value="">-- UNASSIGNED --</option>
+                {warehouses.map(w => (
+                  <option key={w._id} value={w._id}>{w.name} ({w.location})</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>SUPPLIER</label>
+            <input 
+              value={formData.supplier} 
+              onChange={e => setFormData({...formData, supplier: e.target.value})}
+              placeholder="Optional supplier name"
+            />
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
@@ -136,3 +160,4 @@ const EditModal = ({ isOpen, onClose, onSave, product }) => {
 };
 
 export default EditModal;
+

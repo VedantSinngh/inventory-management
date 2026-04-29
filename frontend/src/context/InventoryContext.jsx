@@ -17,10 +17,14 @@ export const InventoryProvider = ({ children }) => {
   const fetchProducts = async () => {
     if (!user) return;
     try {
-      const res = await fetch(`${API_URL}/products`, {
-        headers: { Authorization: `Bearer ${user.token}` }
+      const res = await fetch(`${API_URL}/products?limit=100`, {
+        headers: { Authorization: `Bearer ${user.token}` },
+        credentials: 'include'
       });
-      if (res.ok) setProducts(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setProducts(data.data || data);
+      }
     } catch (error) {
       console.error('Error fetching products:', error);
     }
@@ -29,10 +33,14 @@ export const InventoryProvider = ({ children }) => {
   const fetchOrders = async () => {
     if (!user) return;
     try {
-      const res = await fetch(`${API_URL}/orders`, {
-        headers: { Authorization: `Bearer ${user.token}` }
+      const res = await fetch(`${API_URL}/orders?limit=100`, {
+        headers: { Authorization: `Bearer ${user.token}` },
+        credentials: 'include'
       });
-      if (res.ok) setOrders(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setOrders(data.data || data);
+      }
     } catch (error) {
       console.error('Error fetching orders:', error);
     }
@@ -41,10 +49,14 @@ export const InventoryProvider = ({ children }) => {
   const fetchWarehouses = async () => {
     if (!user) return;
     try {
-      const res = await fetch(`${API_URL}/warehouses`, {
-        headers: { Authorization: `Bearer ${user.token}` }
+      const res = await fetch(`${API_URL}/warehouses?limit=100`, {
+        headers: { Authorization: `Bearer ${user.token}` },
+        credentials: 'include'
       });
-      if (res.ok) setWarehouses(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setWarehouses(data.data || data);
+      }
     } catch (error) {
       console.error('Error fetching warehouses:', error);
     }
@@ -57,6 +69,9 @@ export const InventoryProvider = ({ children }) => {
       fetchWarehouses();
 
       const socket = io(SOCKET_URL, {
+        auth: {
+          token: user.token // Pass token for authentication
+        },
         transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionDelay: 1000,
@@ -77,6 +92,7 @@ export const InventoryProvider = ({ children }) => {
       socket.on('product-created', fetchProducts);
       socket.on('product-updated', fetchProducts);
       socket.on('order-created', fetchOrders);
+      socket.on('order-cancelled', fetchOrders);
       socket.on('stock-changed', () => { 
         fetchProducts(); 
         fetchOrders(); 
@@ -86,7 +102,9 @@ export const InventoryProvider = ({ children }) => {
         console.error('Socket error:', error);
       });
 
-      return () => socket.disconnect();
+      return () => {
+        socket.disconnect();
+      };
     }
   }, [user]);
 
@@ -98,3 +116,4 @@ export const InventoryProvider = ({ children }) => {
     </InventoryContext.Provider>
   );
 };
+

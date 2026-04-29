@@ -11,9 +11,15 @@ export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const userInfo = localStorage.getItem('userInfo');
+    // Try to restore user from sessionStorage on mount
+    const userInfo = sessionStorage.getItem('userInfo');
     if (userInfo) {
-      setUser(JSON.parse(userInfo));
+      try {
+        setUser(JSON.parse(userInfo));
+      } catch (error) {
+        console.error('Failed to parse stored user info:', error);
+        sessionStorage.removeItem('userInfo');
+      }
     }
     setLoading(false);
   }, []);
@@ -23,32 +29,35 @@ export const AuthProvider = ({ children }) => {
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
+        credentials: 'include' // Include cookies (httpOnly)
       });
       const data = await response.json();
       if (response.ok) {
         setUser(data);
-        localStorage.setItem('userInfo', JSON.stringify(data));
+        // Store token in sessionStorage (not localStorage for better security)
+        sessionStorage.setItem('userInfo', JSON.stringify(data));
         navigate('/');
         return { success: true };
       } else {
-        return { success: false, message: data.message };
+        return { success: false, message: data.message || 'Login failed' };
       }
     } catch (error) {
       console.error('Login error:', error);
-      return { success: false, message: 'Server error' };
+      return { success: false, message: 'Server connection error' };
     }
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('userInfo');
+    sessionStorage.removeItem('userInfo');
     navigate('/login');
   };
 
   return (
     <AuthContext.Provider value={{ user, login, logout, loading }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
+
