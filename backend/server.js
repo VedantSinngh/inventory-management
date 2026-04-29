@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import compression from 'compression';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -15,6 +16,7 @@ import Product from './models/Product.js';
 import Order from './models/Order.js';
 import { protect } from './middleware/auth.js';
 import { validateEnv } from './middleware/validateEnv.js';
+import logger from './services/logger.js';
 
 dotenv.config();
 
@@ -28,6 +30,9 @@ const app = express();
 
 // Security: Add Helmet middleware for security headers
 app.use(helmet());
+
+// Response compression
+app.use(compression());
 
 // Request logging
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
@@ -110,20 +115,40 @@ app.get('/api/analytics/reorder-suggestions', protect, async (req, res) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    version: '1.0.0'
+  });
 });
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ message: 'Endpoint not found', path: req.path });
+  logger.warn(`404 - Endpoint not found: ${req.method} ${req.path}`);
+  res.status(404).json({
+    message: 'Endpoint not found',
+    path: req.path,
+    method: req.method
+  });
 });
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
+  const status = err.status || err.statusCode || 500;
+  
+  logger.error('Unhandled error', {
+    status,
+    message: err.message,
+    path: req.path,
+    method: req.method,
+    stack: err.stack
+  });
+
+  res.status(status).json({
     message: err.message || 'Internal server error',
-    error: process.env.NODE_ENV === 'production' ? {} : err
+    status,
+    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
   });
 });
 
@@ -146,20 +171,29 @@ io.use(async (socket, next) => {
 });
 
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id, 'User:', socket.userId);
-  
+  logger.info(`WebSocket client connected: ${socket.id}, User: ${socket.userId}`);
+
   socket.on('stock-update', (data) => {
     // Only broadcast to other clients (not the sender)
     socket.broadcast.emit('stock-changed', data);
   });
 
   socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
+    logger.info(`WebSocket client disconnected: ${socket.id}`);
   });
 });
 
 const PORT = process.env.PORT || 5000;
 
 httpServer.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  logger.info(`
+╔════════════════════════════════════════╗
+║    SERVER STARTED SUCCESSFULLY         ║
+╠════════════════════════════════════════╣
+║ Port: ${PORT}
+║ Environment: ${process.env.NODE_ENV}
+║ Time: ${new Date().toISOString()}
+╚════════════════════════════════════════╝
+  `);
+});
 });

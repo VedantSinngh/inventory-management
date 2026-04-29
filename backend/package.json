@@ -20,7 +20,10 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.5.0",
     "socket.io": "^4.7.2",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "@sendgrid/mail": "^7.7.0",
+    "winston": "^3.11.0",
+    "compression": "^1.7.4"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
