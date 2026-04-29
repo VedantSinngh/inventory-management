@@ -131,12 +131,33 @@ class APIService {
     return this.post('/auth/login', { email, password });
   }
 
+  signup(name, email, password) {
+    return this.post('/auth/signup', { name, email, password });
+  }
+
+  verifyEmail(token) {
+    return this.post('/auth/verify-email', { token });
+  }
+
   register(userData) {
     return this.post('/auth/register', userData);
   }
 
   getCurrentUser() {
     return this.get('/auth/me');
+  }
+
+  getUsers(page = 1, limit = 10) {
+    const params = new URLSearchParams({ page, limit });
+    return this.get(`/auth/users?${params}`);
+  }
+
+  updateUser(id, userData) {
+    return this.put(`/auth/users/${id}`, userData);
+  }
+
+  deleteUser(id) {
+    return this.delete(`/auth/users/${id}`);
   }
 
   // ========== PRODUCTS ==========

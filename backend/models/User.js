@@ -5,8 +5,18 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ['ADMIN', 'MANAGER', 'STAFF'], default: 'STAFF' }
+  role: { type: String, enum: ['ADMIN', 'MANAGER', 'STAFF'], default: 'STAFF' },
+  isVerified: { type: Boolean, default: false },
+  verificationToken: { type: String, default: null },
+  verificationTokenExpires: { type: Date, default: null },
+  resetToken: { type: String, default: null },
+  resetTokenExpires: { type: Date, default: null },
+  status: { type: String, enum: ['ACTIVE', 'INACTIVE', 'PENDING'], default: 'ACTIVE' },
+  lastLogin: { type: Date, default: null }
 }, { timestamps: true });
+
+// Create index for email verification cleanup
+userSchema.index({ verificationTokenExpires: 1 }, { expireAfterSeconds: 0 });
 
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();

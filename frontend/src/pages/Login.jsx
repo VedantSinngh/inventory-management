@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
 const Login = () => {
@@ -89,10 +89,19 @@ const Login = () => {
             />
           </div>
           
-          <button type="submit" className="btn-solid" style={{ marginTop: '12px', padding: '14px' }}>
-            AUTHENTICATE
-          </button>
-        </form>
+              <button type="submit" className="btn-solid" style={{ marginTop: '12px', padding: '14px' }}>
+                AUTHENTICATE
+              </button>
+            </form>
+
+            <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '13px' }}>
+              <p style={{ color: 'var(--color-text-secondary)' }}>
+                Don't have an account?{' '}
+                <Link to="/signup" style={{ color: 'var(--color-accent)', textDecoration: 'none', fontWeight: 'bold' }}>
+                  Sign up here
+                </Link>
+              </p>
+            </div>
       </div>
     </div>
   );

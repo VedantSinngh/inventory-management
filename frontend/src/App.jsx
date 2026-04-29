@@ -4,8 +4,10 @@ import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import Orders from './pages/Orders';
 import Warehouses from './pages/Warehouses';
+import Users from './pages/Users';
 import Login from './pages/Login';
-import { Package, ShoppingCart, LayoutDashboard, LogOut, Warehouse } from 'lucide-react';
+import Signup from './pages/Signup';
+import { Package, ShoppingCart, LayoutDashboard, LogOut, Warehouse, Users as UsersIcon } from 'lucide-react';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import { InventoryProvider, InventoryContext } from './context/InventoryContext';
 import { ToastProvider } from './context/ToastContext';
@@ -14,11 +16,13 @@ import ToastContainer from './components/ToastContainer';
 
 const Sidebar = () => {
   const location = useLocation();
+  const { user } = useContext(AuthContext);
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/products', label: 'Products', icon: Package },
     { path: '/orders', label: 'Orders', icon: ShoppingCart },
     { path: '/warehouses', label: 'Warehouses', icon: Warehouse },
+    ...(user?.role === 'ADMIN' ? [{ path: '/users', label: 'Users', icon: UsersIcon }] : [])
   ];
 
   return (
@@ -122,10 +126,12 @@ function App() {
               <ToastContainer />
               <Routes>
                 <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
                 <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
                 <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
                 <Route path="/warehouses" element={<ProtectedRoute><Warehouses /></ProtectedRoute>} />
+                <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
               </Routes>
             </InventoryProvider>
           </ToastProvider>
