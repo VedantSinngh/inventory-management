@@ -1,0 +1,145 @@
+name: Frontend Tests & Linting
+
+on:
+  push:
+    branches: [ main, full, develop ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-tests.yml'
+  pull_request:
+    branches: [ main, full, develop ]
+    paths:
+      - 'frontend/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run linter
+        working-directory: frontend
+        run: npm run lint --if-present
+        continue-on-error: true
+
+      - name: Build
+        working-directory: frontend
+        env:
+          VITE_API_URL: http://localhost:5000/api
+          VITE_SOCKET_URL: http://localhost:5000
+        run: npm run build
+
+      - name: Run tests
+        working-directory: frontend
+        run: npm test --if-present
+        continue-on-error: true
+
+      - name: Upload build artifact
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-build
+          path: frontend/dist
+          retention-days: 5
+
+  security:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run npm audit
+        working-directory: frontend
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+
+      - name: Dependency check
+        working-directory: frontend
+        run: npm list --depth=0
+
+  accessibility:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: frontend
+        env:
+          VITE_API_URL: http://localhost:5000/api
+          VITE_SOCKET_URL: http://localhost:5000
+        run: npm run build
+
+      - name: Check build size
+        working-directory: frontend
+        run: |
+          GZIP_SIZE=$(du -sh dist | awk '{print $1}')
+          echo "📦 Build size (gzipped): $GZIP_SIZE"
+          if [ $(du -sb dist | awk '{print $1}') -gt 5242880 ]; then
+            echo "⚠️ Build size exceeds 5MB limit"
+            exit 1
+          fi
+
+  lighthouse:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: frontend
+        env:
+          VITE_API_URL: http://localhost:5000/api
+          VITE_SOCKET_URL: http://localhost:5000
+        run: npm run build
+
+      - name: Run Lighthouse
+        uses: treosh/lighthouse-ci-action@v9
+        with:
+          configPath: './frontend/lighthouserc.json'
+        continue-on-error: true

@@ -1,0 +1,108 @@
+name: Backend Tests & Linting
+
+on:
+  push:
+    branches: [ main, full, develop ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-tests.yml'
+  pull_request:
+    branches: [ main, full, develop ]
+    paths:
+      - 'backend/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      mongodb:
+        image: mongo:6.0
+        options: >-
+          --health-cmd mongosh
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 27017:27017
+
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Run linter
+        working-directory: backend
+        run: npm run lint --if-present
+        continue-on-error: true
+
+      - name: Run tests
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          MONGO_URI: mongodb://localhost:27017/inventory-test
+          JWT_SECRET: test-secret-key-minimum-32-characters-long-12345
+          SENDGRID_API_KEY: test-key
+        run: npm test --if-present
+
+      - name: Upload coverage reports
+        if: always()
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./backend/coverage/coverage-final.json
+          flags: backend
+          name: backend-coverage
+          fail_ci_if_error: false
+
+  security:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run npm audit
+        working-directory: backend
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+
+      - name: Dependency check
+        working-directory: backend
+        run: npm list --depth=0
+
+  code-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Check environment validation
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          MONGO_URI: mongodb://localhost:27017/inventory-test
+          JWT_SECRET: test-secret-key-minimum-32-characters-long-12345
+        run: node -e "require('./middleware/validateEnv.js'); console.log('✅ Environment validation passed')"
+
+      - name: Validate package.json
+        working-directory: backend
+        run: node -e "const pkg = require('./package.json'); console.log('✅ Valid package.json')"

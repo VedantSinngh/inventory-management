@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inventory Management System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+      body, html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #root {
+        width: 100%;
+        height: 100%;
+      }
+      .loading-screen {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        background-color: #000000;
+        font-family: 'IBM Plex Mono', monospace;
+        color: #FFFFFF;
+      }
+      .spinner {
+        border: 3px solid #2E2E2E;
+        border-top: 3px solid #FFFFFF;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="loading-screen">
+        <div style="text-align: center;">
+          <div class="spinner"></div>
+          <p style="margin-top: 20px;">Initializing System...</p>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Error detection for script loading failures
+      window.addEventListener('error', function(event) {
+        console.error('Global error:', event.error);
+        document.getElementById('root').innerHTML = `
+          <div style="
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #000000;
+            font-family: 'IBM Plex Mono', monospace;
+            color: #FFFFFF;
+          ">
+            <div style="text-align: center; max-width: 500px;">
+              <h1>Error Loading Application</h1>
+              <p>${event.error?.message || 'Unknown error'}</p>
+              <p style="color: #A3A3A3; margin-top: 20px; font-size: 12px;">
+                Check browser console for details. Make sure the backend server is running on port 5000.
+              </p>
+              <button onclick="location.reload()" style="
+                margin-top: 20px;
+                padding: 10px 20px;
+                background-color: #FFFFFF;
+                color: #000000;
+                border: none;
+                cursor: pointer;
+                font-family: 'IBM Plex Mono', monospace;
+              ">Retry</button>
+            </div>
+          </div>
+        `;
+      }, true);
+    </script>
+  </body>
+</html>
