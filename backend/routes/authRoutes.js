@@ -499,7 +499,8 @@ router.post(
 
 // Public: Setup endpoint - creates initial admin user if database is empty
 // This is for first-time deployment setup only
-router.post('/setup', async (req, res) => {
+// Supports both GET (for easy testing/browsers) and POST
+const setupHandler = async (req, res) => {
   try {
     const userCount = await User.countDocuments({});
     
@@ -560,7 +561,11 @@ router.post('/setup', async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: 'Setup error', error: error.message });
   }
-});
+};
+
+// Support both GET and POST for setup
+router.get('/setup', setupHandler);
+router.post('/setup', setupHandler);
 
 export default router;
 
