@@ -168,18 +168,18 @@ const Products = () => {
           bottom: '24px',
           left: '50%',
           transform: 'translateX(-50%)',
-          backgroundColor: 'var(--color-surface-2)',
-          border: '1px solid var(--color-accent)',
-          borderRadius: '8px',
-          padding: '12px 24px',
+          backgroundColor: 'var(--color-surface-elevated)',
+          border: '1px solid var(--color-m-red)',
+          borderRadius: 'var(--rounded-none)',
+          padding: '16px 32px',
           display: 'flex',
           alignItems: 'center',
           gap: '24px',
           zIndex: 1000,
           boxShadow: 'none'
         }}>
-          <div style={{ fontSize: '13px', color: 'var(--color-text-primary)' }}>
-            Selected SKU: <strong style={{ color: 'var(--color-accent)' }}>{selectedProduct.sku}</strong> ({selectedProduct.name})
+          <div style={{ fontSize: '13px', color: 'var(--color-on-dark)' }}>
+            Selected SKU: <strong style={{ color: 'var(--color-m-red)' }}>{selectedProduct.sku}</strong> ({selectedProduct.name})
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button 

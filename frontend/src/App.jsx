@@ -20,7 +20,7 @@ import Returns from './pages/Returns';
 import DeadStock from './pages/DeadStock';
 import MobileScanner from './pages/MobileScanner';
 import VerifyEmail from './pages/VerifyEmail';
-import { Package, ShoppingCart, LayoutDashboard, LogOut, Warehouse, Users as UsersIcon, Truck, Building2, Boxes, AlertCircle, BarChart3, ClipboardList, Percent, Camera, Bell } from 'lucide-react';
+import { Package, ShoppingCart, LayoutDashboard, LogOut, Warehouse, Users as UsersIcon, Truck, Building2, Boxes, AlertCircle, BarChart3, ClipboardList, Percent, Camera, Bell, Menu, X, ChevronDown } from 'lucide-react';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import { InventoryProvider, InventoryContext } from './context/InventoryContext';
 import { ToastProvider } from './context/ToastContext';
@@ -28,239 +28,288 @@ import ErrorBoundary from './components/ErrorBoundary';
 import ToastContainer from './components/ToastContainer';
 import AlertCenter from './components/AlertCenter';
 
-const Sidebar = () => {
+const MStripe = () => (
+  <div className="m-stripe-divider">
+    <div className="m-light-blue"></div>
+    <div className="m-dark-blue"></div>
+    <div className="m-red"></div>
+  </div>
+);
+
+const TopNav = () => {
+  const { user, logout } = useContext(AuthContext);
+  const { socketConnected } = useContext(InventoryContext);
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
-  const { user } = useContext(AuthContext);
-  const [collapsed, setCollapsed] = useState(window.innerWidth < 1280);
-  const [mobileOpen, setMobileOpen] = useState(false);
 
-  useEffect(() => {
-    const handleResize = () => {
-      setCollapsed(window.innerWidth < 1280);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  const navGroups = {
+    'Operations': [
+      { path: '/orders', label: 'Orders' },
+      { path: '/shipments', label: 'Shipments' },
+      { path: '/suppliers', label: 'Suppliers' },
+      { path: '/batches', label: 'Batches' },
+    ],
+    'Inventory': [
+      { path: '/products', label: 'Products' },
+      { path: '/warehouses', label: 'Warehouses' },
+      { path: '/cycle-counts', label: 'Cycle Counts' },
+      { path: '/returns', label: 'Returns' },
+      { path: '/dead-stock', label: 'Dead Stock' },
+    ],
+    'Intelligence': [
+      { path: '/analytics', label: 'Analytics' },
+      { path: '/alerts', label: 'Alerts' },
+      { path: '/reorders', label: 'Reorder Engine' },
+      { path: '/scanner', label: 'Scanner' },
+    ]
+  };
 
-  const navItems = [
-    { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
-    { path: '/shipments', label: 'Shipments', icon: Truck },
-    { path: '/suppliers', label: 'Suppliers', icon: Building2 },
-    { path: '/batches', label: 'Batches', icon: Boxes },
-    { path: '/alerts', label: 'Alerts', icon: AlertCircle },
-    { path: '/cycle-counts', label: 'Cycle Counts', icon: BarChart3 },
-    { path: '/products', label: 'Products', icon: Package },
-    { path: '/orders', label: 'Orders', icon: ShoppingCart },
-    { path: '/warehouses', label: 'Warehouses', icon: Warehouse },
-    { path: '/reorders', label: 'Reorder Engine', icon: ShoppingCart },
-    { path: '/returns', label: 'Returns', icon: ClipboardList },
-    { path: '/dead-stock', label: 'Dead Stock', icon: Percent },
-    { path: '/scanner', label: 'Scanner', icon: Camera },
-    ...(user?.role === 'ADMIN' ? [{ path: '/users', label: 'Users', icon: UsersIcon }] : [])
-  ];
+  if (user?.role === 'ADMIN') {
+    navGroups['Admin'] = [{ path: '/users', label: 'Users' }];
+  }
 
-  const sidebarContent = (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--color-surface-1)' }}>
-      <div style={{ 
-        height: '64px', 
-        padding: '0 20px', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: collapsed ? 'center' : 'flex-start',
-        borderBottom: '1px solid var(--color-border)' 
-      }}>
-        <h2 style={{ 
-          fontSize: collapsed ? '14px' : '18px', 
-          fontWeight: '600', 
-          color: 'var(--color-accent)', 
-          margin: 0,
-          letterSpacing: '-0.2px'
+  // Desktop Dropdown Component
+  const NavDropdown = ({ title, items }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    return (
+      <div 
+        style={{ position: 'relative', height: '100%', display: 'flex', alignItems: 'center' }}
+        onMouseEnter={() => setIsOpen(true)}
+        onMouseLeave={() => setIsOpen(false)}
+      >
+        <div style={{
+          color: isOpen ? 'var(--color-on-dark)' : 'var(--color-body)',
+          cursor: 'pointer',
+          padding: '0 16px',
+          fontWeight: isOpen ? '700' : '400',
+          fontSize: '14px',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          transition: 'color 150ms'
         }}>
-          {collapsed ? 'IMS' : 'SYSTEM.CORE'}
-        </h2>
+          {title} <ChevronDown size={14} />
+        </div>
+        {isOpen && (
+          <div style={{
+            position: 'absolute',
+            top: '64px',
+            left: '0',
+            backgroundColor: 'var(--color-surface-card)',
+            border: '1px solid var(--color-hairline)',
+            borderTop: 'none',
+            minWidth: '200px',
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {items.map(item => (
+              <Link 
+                key={item.path} 
+                to={item.path}
+                style={{
+                  padding: '12px 16px',
+                  color: location.pathname === item.path ? 'var(--color-on-dark)' : 'var(--color-body)',
+                  fontWeight: location.pathname === item.path ? '700' : '400',
+                  textDecoration: 'none',
+                  fontSize: '14px',
+                  borderBottom: '1px solid var(--color-hairline)',
+                  transition: 'background-color 150ms'
+                }}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
-      <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto' }}>
-        {navItems.map(item => {
-          const isActive = location.pathname === item.path;
-          const Icon = item.icon;
-          return (
-            <Link 
-              key={item.path} 
-              to={item.path} 
-              onClick={() => setMobileOpen(false)}
-              style={{
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: collapsed ? 'center' : 'flex-start',
-                height: '40px',
-                padding: collapsed ? '0' : '0 12px',
-                backgroundColor: isActive ? 'var(--color-accent-glow)' : 'transparent',
-                borderLeft: isActive ? '2px solid var(--color-accent)' : '2px solid transparent',
-                color: isActive ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-                textDecoration: 'none',
-                borderRadius: '0',
-                transition: 'all 150ms ease'
-              }}
-              title={collapsed ? item.label : undefined}
-            >
-              <Icon size={18} style={{ flexShrink: 0, marginRight: collapsed ? 0 : '8px' }} />
-              {!collapsed && <span style={{ fontSize: '14px', fontWeight: '500' }}>{item.label}</span>}
-            </Link>
-          )
-        })}
-      </nav>
-    </div>
-  );
+    );
+  };
 
   return (
     <>
-      {/* Desktop view */}
-      <div style={{ 
-        width: collapsed ? '60px' : '240px', 
-        height: '100vh', 
-        borderRight: '1px solid var(--color-border)',
+      <div style={{
+        height: '64px', 
+        backgroundColor: 'var(--color-canvas)',
+        borderBottom: '1px solid var(--color-hairline)',
+        display: 'flex', 
+        alignItems: 'center', 
+        padding: '0 24px', 
+        justifyContent: 'space-between',
         flexShrink: 0,
-        display: 'block',
-        '@media (max-width: 768px)': { display: 'none' }
-      }} className="desktop-sidebar-container">
-        {sidebarContent}
+        position: 'sticky',
+        top: 0,
+        zIndex: 999
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '32px', height: '100%' }}>
+          {/* Logo Area */}
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+            <div style={{ width: '24px' }}><MStripe /></div>
+            <span style={{ fontSize: '20px', fontWeight: '700', letterSpacing: '1px', color: 'var(--color-on-dark)' }}>
+              SYSTEM.M
+            </span>
+          </Link>
+
+          {/* Desktop Nav */}
+          <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+            <Link to="/" style={{
+              color: location.pathname === '/' ? 'var(--color-on-dark)' : 'var(--color-body)',
+              padding: '0 16px',
+              fontWeight: location.pathname === '/' ? '700' : '400',
+              fontSize: '14px',
+              textTransform: 'uppercase',
+              textDecoration: 'none',
+              letterSpacing: '0.5px'
+            }}>Dashboard</Link>
+            {Object.entries(navGroups).map(([title, items]) => (
+              <NavDropdown key={title} title={title} items={items} />
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          {/* Connection Status */}
+          <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className="pulsing-dot" style={{ animationPlayState: socketConnected ? 'running' : 'paused', opacity: socketConnected ? 1 : 0.2 }}></span>
+            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-muted)', fontWeight: '700', letterSpacing: '1px' }}>
+              {socketConnected ? 'ONLINE' : 'OFFLINE'}
+            </span>
+          </div>
+
+          <button onClick={() => setAlertOpen(true)} className="btn-icon" style={{ width: '40px', height: '40px', backgroundColor: 'transparent' }}>
+            <Bell size={20} style={{ color: 'var(--color-on-dark)' }} />
+          </button>
+
+          {/* User Profile */}
+          <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '16px', borderLeft: '1px solid var(--color-hairline)', paddingLeft: '24px' }}>
+            <div style={{ fontSize: '14px', color: 'var(--color-on-dark)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              {user?.name || 'USER'}
+            </div>
+            <button onClick={logout} style={{ color: 'var(--color-muted)', cursor: 'pointer', background: 'none', border: 'none' }}>
+              <LogOut size={18} />
+            </button>
+          </div>
+
+          {/* Mobile Menu Toggle */}
+          <button className="mobile-only" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} style={{ color: 'var(--color-on-dark)' }}>
+            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
+
+        <AlertCenter isOpen={alertOpen} onClose={() => setAlertOpen(false)} />
       </div>
 
-      {/* Mobile view bottom drawer triggers could be rendered but layout will automatically arrange it */}
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && (
+        <div style={{
+          position: 'fixed',
+          top: '64px',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'var(--color-canvas)',
+          zIndex: 998,
+          overflowY: 'auto',
+          padding: '24px'
+        }}>
+          <MStripe />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '24px' }}>
+            <Link to="/" onClick={() => setMobileMenuOpen(false)} style={{ fontSize: '18px', fontWeight: '700', color: 'var(--color-on-dark)', textTransform: 'uppercase' }}>Dashboard</Link>
+            {Object.entries(navGroups).map(([title, items]) => (
+              <div key={title}>
+                <div style={{ fontSize: '12px', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>{title}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingLeft: '12px', borderLeft: '1px solid var(--color-hairline)' }}>
+                  {items.map(item => (
+                    <Link key={item.path} to={item.path} onClick={() => setMobileMenuOpen(false)} style={{ fontSize: '16px', color: 'var(--color-on-dark)', textDecoration: 'none' }}>
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--color-hairline)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '16px', color: 'var(--color-on-dark)', textTransform: 'uppercase' }}>{user?.name}</span>
+              <button onClick={() => { logout(); setMobileMenuOpen(false); }} className="btn-secondary" style={{ height: '36px', padding: '0 16px' }}>LOGOUT</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`
-        @media (max-width: 768px) {
-          .desktop-sidebar-container {
-            display: none !important;
-          }
-          .mobile-bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 56px;
-            background-color: var(--color-surface-1);
-            border-top: 1px solid var(--color-border);
-            display: flex !important;
-            justify-content: space-around;
-            align-items: center;
-            z-index: 100;
-          }
-          .mobile-bottom-nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            color: var(--color-text-secondary);
-            font-size: 10px;
-          }
-          .mobile-bottom-nav-item.active {
-            color: var(--color-accent);
-          }
+        @media (max-width: 1024px) {
+          .desktop-only { display: none !important; }
+        }
+        @media (min-width: 1025px) {
+          .mobile-only { display: none !important; }
         }
       `}</style>
-      <div className="mobile-bottom-nav" style={{ display: 'none' }}>
-        <Link to="/" className={`mobile-bottom-nav-item ${location.pathname === '/' ? 'active' : ''}`}>
-          <LayoutDashboard size={18} />
-          <span>Dashboard</span>
-        </Link>
-        <Link to="/products" className={`mobile-bottom-nav-item ${location.pathname === '/products' ? 'active' : ''}`}>
-          <Package size={18} />
-          <span>Products</span>
-        </Link>
-        <Link to="/orders" className={`mobile-bottom-nav-item ${location.pathname === '/orders' ? 'active' : ''}`}>
-          <ShoppingCart size={18} />
-          <span>Orders</span>
-        </Link>
-        <Link to="/warehouses" className={`mobile-bottom-nav-item ${location.pathname === '/warehouses' ? 'active' : ''}`}>
-          <Warehouse size={18} />
-          <span>Warehouses</span>
-        </Link>
-        <Link to="/alerts" className={`mobile-bottom-nav-item ${location.pathname === '/alerts' ? 'active' : ''}`}>
-          <AlertCircle size={18} />
-          <span>Alerts</span>
-        </Link>
-      </div>
     </>
   );
 };
 
-const Topbar = () => {
-  const { user, logout } = useContext(AuthContext);
-  const { socketConnected } = useContext(InventoryContext);
-  const [alertOpen, setAlertOpen] = useState(false);
-  const location = useLocation();
-
-  // Create breadcrumb
-  const pathParts = location.pathname.split('/').filter(p => p);
-  const breadcrumb = pathParts.length > 0 
-    ? `SYSTEM / ${pathParts.map(p => p.toUpperCase()).join(' / ')}` 
-    : 'SYSTEM / DASHBOARD';
-
-  return (
-    <div style={{
-      height: '56px', 
-      backgroundColor: 'var(--color-surface-1)',
-      borderBottom: '1px solid var(--color-border)',
-      display: 'flex', 
-      alignItems: 'center', 
-      padding: '0 24px', 
-      justifyContent: 'space-between',
-      flexShrink: 0
-    }}>
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', fontWeight: '400', letterSpacing: '0.4px' }}>
-          {breadcrumb}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span className="pulsing-dot" style={{ animationPlayState: socketConnected ? 'running' : 'paused', opacity: socketConnected ? 1 : 0.2 }}></span>
-          <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: '600', letterSpacing: '0.8px' }}>Live</span>
+const Footer = () => (
+  <footer style={{ backgroundColor: 'var(--color-canvas)', padding: '64px 24px', borderTop: '1px solid var(--color-hairline)', marginTop: 'auto' }}>
+    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '40px' }}>
+      <div>
+        <div style={{ marginBottom: '24px', width: '32px' }}><MStripe /></div>
+        <div style={{ fontSize: '14px', fontWeight: '700', letterSpacing: '1.5px', color: 'var(--color-on-dark)', textTransform: 'uppercase', marginBottom: '16px' }}>SYSTEM.M MODELS</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <Link to="/products" style={{ color: 'var(--color-muted)', fontSize: '14px' }}>All Products</Link>
+          <Link to="/warehouses" style={{ color: 'var(--color-muted)', fontSize: '14px' }}>Warehouses</Link>
+          <Link to="/suppliers" style={{ color: 'var(--color-muted)', fontSize: '14px' }}>Suppliers</Link>
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        <input 
-          placeholder="Quick search..." 
-          style={{ width: '180px', height: '28px', fontSize: '12px', padding: '0 8px', borderRadius: '4px' }}
-        />
-        <button 
-          onClick={() => setAlertOpen(true)} 
-          style={{ display: 'flex', background: 'none', border: 'none', padding: 0, cursor: 'pointer', outline: 'none' }}
-          title="Open Alert Center"
-        >
-          <Bell size={18} style={{ color: 'var(--color-text-secondary)', transition: 'color 150ms' }} />
-        </button>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '8px', borderLeft: '1px solid var(--color-border)' }}>
-          <div style={{ fontSize: '12px', color: 'var(--color-text-primary)', fontWeight: '500' }}>{user?.name || 'User'}</div>
-          <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: 'var(--color-accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '600' }}>
-            {user?.name && typeof user.name === 'string' ? user.name.slice(0,2).toUpperCase() : 'US'}
-          </div>
-          <button onClick={logout} style={{ display: 'flex', background: 'none', border: 'none', padding: 0, cursor: 'pointer', outline: 'none' }}>
-            <LogOut size={16} style={{ color: 'var(--color-text-secondary)' }} />
-          </button>
+      <div>
+        <div style={{ fontSize: '14px', fontWeight: '700', letterSpacing: '1.5px', color: 'var(--color-on-dark)', textTransform: 'uppercase', marginBottom: '16px', marginTop: '28px' }}>OPERATIONS</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <Link to="/orders" style={{ color: 'var(--color-muted)', fontSize: '14px' }}>Orders</Link>
+          <Link to="/shipments" style={{ color: 'var(--color-muted)', fontSize: '14px' }}>Shipments</Link>
+          <Link to="/batches" style={{ color: 'var(--color-muted)', fontSize: '14px' }}>Batches</Link>
         </div>
       </div>
-
-      <AlertCenter isOpen={alertOpen} onClose={() => setAlertOpen(false)} />
+      <div>
+        <div style={{ fontSize: '14px', fontWeight: '700', letterSpacing: '1.5px', color: 'var(--color-on-dark)', textTransform: 'uppercase', marginBottom: '16px', marginTop: '28px' }}>INTELLIGENCE</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <Link to="/analytics" style={{ color: 'var(--color-muted)', fontSize: '14px' }}>Analytics</Link>
+          <Link to="/alerts" style={{ color: 'var(--color-muted)', fontSize: '14px' }}>Alerts</Link>
+          <Link to="/reorders" style={{ color: 'var(--color-muted)', fontSize: '14px' }}>Reorder Engine</Link>
+        </div>
+      </div>
+      <div>
+        <div style={{ fontSize: '14px', fontWeight: '700', letterSpacing: '1.5px', color: 'var(--color-on-dark)', textTransform: 'uppercase', marginBottom: '16px', marginTop: '28px' }}>LEGAL</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <span style={{ color: 'var(--color-muted)', fontSize: '14px', cursor: 'pointer' }}>Imprint</span>
+          <span style={{ color: 'var(--color-muted)', fontSize: '14px', cursor: 'pointer' }}>Cookies</span>
+          <span style={{ color: 'var(--color-muted)', fontSize: '14px', cursor: 'pointer' }}>Privacy Policy</span>
+        </div>
+      </div>
     </div>
-  );
-};
+    <div style={{ maxWidth: '1440px', margin: '64px auto 0', paddingTop: '24px', borderTop: '1px solid var(--color-hairline)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="caption" style={{ color: 'var(--color-muted)' }}>© {new Date().getFullYear()} SYSTEM.M INVENTORY</div>
+      <div className="caption" style={{ color: 'var(--color-muted)' }}>EN</div>
+    </div>
+  </footer>
+);
 
 const Layout = ({ children }) => {
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', backgroundColor: 'var(--color-canvas)' }}>
-      <Sidebar />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <Topbar />
-        <div style={{ 
-          flex: 1, 
-          overflowY: 'auto', 
-          backgroundColor: 'var(--color-canvas)', 
-          padding: '24px',
-          paddingBottom: '80px' // offset bottom mobile menu
-        }}>
-           {children}
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--color-canvas)' }}>
+      <TopNav />
+      <div style={{ 
+        flex: 1, 
+        width: '100%',
+        maxWidth: '1440px',
+        margin: '0 auto',
+        padding: 'var(--spacing-xxl) var(--spacing-lg)',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+         {children}
       </div>
+      <Footer />
     </div>
   );
 };
@@ -277,8 +326,9 @@ const ProtectedRoute = ({ children }) => {
         height: '100vh',
         backgroundColor: 'var(--color-canvas)'
       }}>
-        <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-          <div style={{ fontSize: '14px', marginBottom: '10px' }}>Loading...</div>
+        <div style={{ textAlign: 'center', color: 'var(--color-muted)' }}>
+          <div style={{ fontSize: '14px', fontWeight: '300', textTransform: 'uppercase', letterSpacing: '2px' }}>SYSTEM.M INITIALIZING...</div>
+          <div style={{ width: '48px', margin: '16px auto' }}><MStripe /></div>
         </div>
       </div>
     );

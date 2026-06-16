@@ -105,9 +105,9 @@ const Dashboard = () => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Alerts */}
       {(outOfStockProducts.length > 0 || lowStockProducts.length > 0 || advancedMetrics.alerts.critical > 0) && (
-        <div className="badge badge-danger" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: '6px', width: '100%', justifyContent: 'flex-start' }}>
+        <div className="badge badge-danger" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', borderRadius: 'var(--rounded-none)', width: '100%', justifyContent: 'flex-start', border: '1px solid var(--color-danger)' }}>
           <AlertCircle size={20} />
-          <span style={{ textTransform: 'none', letterSpacing: 'normal', fontSize: '13px' }}>
+          <span style={{ textTransform: 'uppercase', letterSpacing: '1px', fontSize: '12px', fontWeight: '700' }}>
             <strong>SYSTEM ALERTS:</strong>
             {outOfStockProducts.length > 0 && ` ${outOfStockProducts.length} items OUT OF STOCK`}
             {outOfStockProducts.length > 0 && lowStockProducts.length > 0 && ' |'}
@@ -184,33 +184,25 @@ const Dashboard = () => {
       )}
 
       {/* Quick Actions */}
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '24px', marginBottom: '24px' }}>
         <button
           onClick={() => exportCSV(products, 'inventory_export.csv')}
-          className="btn-outline"
+          className="btn-ghost"
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            padding: '10px 16px'
+            gap: '8px'
           }}
         >
           <Download size={16} /> EXPORT INVENTORY
         </button>
         <button
           onClick={() => window.location.href = '/analytics'}
+          className="btn-solid"
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            padding: '10px 16px',
-            backgroundColor: 'var(--color-accent)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '600'
+            gap: '8px'
           }}
         >
           VIEW ANALYTICS
@@ -241,9 +233,10 @@ const Dashboard = () => {
             color: 'var(--color-text-muted)',
             fontSize: '13px',
             textAlign: 'center',
-            padding: '20px',
-            backgroundColor: 'var(--color-bg-primary)',
-            borderRadius: '6px'
+            padding: '24px',
+            backgroundColor: 'var(--color-surface-soft)',
+            borderRadius: 'var(--rounded-none)',
+            border: '1px solid var(--color-hairline)'
           }}>
             ✅ All inventory levels are optimal. No reorders needed.
           </p>
@@ -257,11 +250,11 @@ const Dashboard = () => {
               <div
                 key={item.productId}
                 style={{
-                  backgroundColor: 'var(--color-bg-primary)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: '6px',
-                  padding: '12px',
-                  borderLeft: '3px solid #EF4444'
+                  backgroundColor: 'var(--color-surface-soft)',
+                  border: '1px solid var(--color-hairline)',
+                  borderRadius: 'var(--rounded-none)',
+                  padding: '16px',
+                  borderLeft: '4px solid var(--color-m-red)'
                 }}
               >
                 <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', maxHeight: '34px', overflow: 'hidden' }}>
