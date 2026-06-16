@@ -52,6 +52,7 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 const allowedOrigins = [
   process.env.CORS_ORIGIN || 'http://localhost:5173',
   process.env.SOCKET_IO_CORS_ORIGIN || 'http://localhost:5173',
+  'https://inventory-management-frontend-ten-gray.vercel.app',
   'https://inventory-management-frontend.vercel.app'
 ];
 

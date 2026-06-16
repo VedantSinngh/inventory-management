@@ -497,5 +497,70 @@ router.post(
   }
 );
 
+// Public: Setup endpoint - creates initial admin user if database is empty
+// This is for first-time deployment setup only
+router.post('/setup', async (req, res) => {
+  try {
+    const userCount = await User.countDocuments({});
+    
+    // If users already exist, don't allow setup
+    if (userCount > 0) {
+      return res.status(409).json({ 
+        message: 'Database already initialized with users. Setup not needed.',
+        userCount 
+      });
+    }
+
+    // Create admin user
+    const adminUser = await User.create({
+      name: 'Admin User',
+      email: 'admin@inventory.com',
+      password: 'admin@123',
+      role: 'ADMIN',
+      isVerified: true,
+      status: 'ACTIVE',
+      lastLogin: new Date()
+    });
+
+    // Create additional demo users
+    await User.create([
+      {
+        name: 'Manager - John Smith',
+        email: 'manager@inventory.com',
+        password: 'manager@123',
+        role: 'MANAGER',
+        isVerified: true,
+        status: 'ACTIVE',
+        lastLogin: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+      },
+      {
+        name: 'Staff - Mike Davis',
+        email: 'staff1@inventory.com',
+        password: 'staff@123',
+        role: 'STAFF',
+        isVerified: true,
+        status: 'ACTIVE',
+        lastLogin: new Date(Date.now() - 3 * 60 * 60 * 1000)
+      }
+    ]);
+
+    res.status(201).json({
+      message: 'Database initialized successfully',
+      admin: {
+        email: 'admin@inventory.com',
+        password: 'admin@123',
+        role: 'ADMIN'
+      },
+      additionalUsers: [
+        { email: 'manager@inventory.com', password: 'manager@123', role: 'MANAGER' },
+        { email: 'staff1@inventory.com', password: 'staff@123', role: 'STAFF' }
+      ],
+      warning: 'IMPORTANT: Delete this endpoint or disable it in production after first setup'
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Setup error', error: error.message });
+  }
+});
+
 export default router;
 
