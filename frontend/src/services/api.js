@@ -125,6 +125,17 @@ class APIService {
     });
   }
 
+  /**
+   * PATCH request
+   */
+  patch(endpoint, data = {}, options = {}) {
+    return this.request(endpoint, {
+      ...options,
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  }
+
   // ========== AUTHENTICATION ==========
 
   login(email, password) {
@@ -137,6 +148,10 @@ class APIService {
 
   verifyEmail(token) {
     return this.post('/auth/verify-email', { token });
+  }
+
+  verifyEmailGet(token) {
+    return this.get(`/auth/verify?token=${token}`);
   }
 
   register(userData) {
@@ -214,7 +229,147 @@ class APIService {
     return this.post(`/orders/${id}/cancel`, {});
   }
 
-  // ========== WAREHOUSES ==========
+  // ========== SHIPMENTS ==========
+
+  getShipments(page = 1, limit = 20, filters = {}) {
+    const params = new URLSearchParams({
+      page,
+      limit,
+      ...filters
+    });
+    return this.get(`/shipments?${params}`);
+  }
+
+  getShipment(id) {
+    return this.get(`/shipments/${id}`);
+  }
+
+  createShipment(shipmentData) {
+    return this.post('/shipments', shipmentData);
+  }
+
+  updateShipmentStatus(id, status) {
+    return this.put(`/shipments/${id}`, { status });
+  }
+
+  getShipmentTracking(trackingNumber) {
+    return this.get(`/shipments/tracking/${trackingNumber}`);
+  }
+
+  // ========== ALERTS ==========
+
+  getAlerts(page = 1, limit = 20, filters = {}) {
+    const params = new URLSearchParams({
+      page,
+      limit,
+      ...filters
+    });
+    return this.get(`/alerts?${params}`);
+  }
+
+  getAlert(id) {
+    return this.get(`/alerts/${id}`);
+  }
+
+  acknowledgeAlert(id) {
+    return this.put(`/alerts/${id}`, { status: 'ACKNOWLEDGED' });
+  }
+
+  resolveAlert(id, resolution = '') {
+    return this.put(`/alerts/${id}`, { status: 'RESOLVED', resolution });
+  }
+
+  // ========== BATCHES ==========
+
+  getBatches(page = 1, limit = 20, filters = {}) {
+    const params = new URLSearchParams({
+      page,
+      limit,
+      ...filters
+    });
+    return this.get(`/batches?${params}`);
+  }
+
+  getBatch(id) {
+    return this.get(`/batches/${id}`);
+  }
+
+  createBatch(batchData) {
+    return this.post('/batches', batchData);
+  }
+
+  updateBatchStatus(id, qualityStatus) {
+    return this.put(`/batches/${id}`, { qualityStatus });
+  }
+
+  // ========== FORECASTS ==========
+
+  getForecasts(page = 1, limit = 20, filters = {}) {
+    const params = new URLSearchParams({
+      page,
+      limit,
+      ...filters
+    });
+    return this.get(`/forecasts?${params}`);
+  }
+
+  getForecast(id) {
+    return this.get(`/forecasts/${id}`);
+  }
+
+  generateForecast(productId, options = {}) {
+    return this.post('/forecasts/generate', { productId, ...options });
+  }
+
+  // ========== SUPPLIERS ==========
+
+  getSuppliers(page = 1, limit = 20, filters = {}) {
+    const params = new URLSearchParams({
+      page,
+      limit,
+      ...filters
+    });
+    return this.get(`/suppliers?${params}`);
+  }
+
+  getSupplier(id) {
+    return this.get(`/suppliers/${id}`);
+  }
+
+  createSupplier(supplierData) {
+    return this.post('/suppliers', supplierData);
+  }
+
+  updateSupplier(id, supplierData) {
+    return this.put(`/suppliers/${id}`, supplierData);
+  }
+
+  deleteSupplier(id, reason = '') {
+    return this.delete(`/suppliers/${id}`, { reason });
+  }
+
+  // ========== CYCLE COUNTS ==========
+
+  getCycleCounts(page = 1, limit = 20, filters = {}) {
+    const params = new URLSearchParams({
+      page,
+      limit,
+      ...filters
+    });
+    return this.get(`/cycle-counts?${params}`);
+  }
+
+  getCycleCount(id) {
+    return this.get(`/cycle-counts/${id}`);
+  }
+
+  createCycleCount(cycleCountData) {
+    return this.post('/cycle-counts', cycleCountData);
+  }
+
+  updateCycleCountStatus(id, status) {
+    return this.put(`/cycle-counts/${id}`, { status });
+  }
 
   getWarehouses(page = 1, limit = 20) {
     const params = new URLSearchParams({ page, limit });

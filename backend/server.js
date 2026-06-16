@@ -17,6 +17,15 @@ import supplierRoutes from './routes/supplierRoutes.js';
 import batchRoutes from './routes/batchRoutes.js';
 import forecastRoutes from './routes/forecastRoutes.js';
 import alertRoutes from './routes/alertRoutes.js';
+import cycleCountRoutes from './routes/cycleCountRoutes.js';
+import routeRoutes from './routes/routeRoutes.js';
+import reorderRoutes from './routes/reorderRoutes.js';
+import searchRoutes from './routes/searchRoutes.js';
+import llmAlertRoutes from './routes/llmAlertRoutes.js';
+import returnRoutes from './routes/returnRoutes.js';
+import financeRoutes from './routes/financeRoutes.js';
+import inventoryRoutes from './routes/inventoryRoutes.js';
+import { startExchangeRateCron } from './services/currencyCronService.js';
 import Product from './models/Product.js';
 import Order from './models/Order.js';
 import { protect } from './middleware/auth.js';
@@ -27,9 +36,6 @@ dotenv.config();
 
 // Validate environment variables before anything else
 validateEnv();
-
-// Initialize Database
-connectDB();
 
 const app = express();
 
@@ -86,6 +92,14 @@ app.use('/api/suppliers', supplierRoutes);
 app.use('/api/batches', batchRoutes);
 app.use('/api/forecasts', forecastRoutes);
 app.use('/api/alerts', alertRoutes);
+app.use('/api/cycle-counts', cycleCountRoutes);
+app.use('/api/routes', routeRoutes);
+app.use('/api/reorders', reorderRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/llm-alerts', llmAlertRoutes);
+app.use('/api/returns', returnRoutes);
+app.use('/api/finance', financeRoutes);
+app.use('/api/inventory', inventoryRoutes);
 
 // Analytics endpoint
 app.get('/api/analytics/reorder-suggestions', protect, async (req, res) => {
@@ -292,14 +306,22 @@ global.emitBatchUpdate = (batchId, updateData) => {
 
 const PORT = process.env.PORT || 5000;
 
-httpServer.listen(PORT, () => {
-  logger.info(`
-╔════════════════════════════════════════╗
-║    SERVER STARTED SUCCESSFULLY         ║
-╠════════════════════════════════════════╣
-║ Port: ${PORT}
-║ Environment: ${process.env.NODE_ENV}
-║ Time: ${new Date().toISOString()}
-╚════════════════════════════════════════╝
-  `);
-});
+// Initialize Database and start server
+(async () => {
+  try {
+    await connectDB();
+    
+    // Start background exchange rate cron
+    startExchangeRateCron();
+    
+    httpServer.listen(PORT, () => {
+      const message = '\nSERVER STARTED SUCCESSFULLY\nPort: ' + PORT + '\nEnvironment: ' + process.env.NODE_ENV + '\nTime: ' + new Date().toISOString();
+      logger.info(message);
+      console.log(message);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    logger.error('Failed to start server:', error);
+    process.exit(1);
+  }
+})();

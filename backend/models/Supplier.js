@@ -42,6 +42,13 @@ const supplierSchema = new mongoose.Schema({
     qualityRating: { type: Number, min: 0, max: 100, default: 90 },
     averageOrderValue: { type: Number, default: 0 }
   },
+  leadTimeHistory: [{
+    purchaseOrderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order' },
+    promisedDate: Date,
+    actualDate: Date,
+    leadTimeDays: Number
+  }],
+  leadTimeStdDev: { type: Number, default: 2.1 },
   notes: [{ type: String, timestamp: Date }],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   deletedAt: { type: Date, default: null } // Soft delete

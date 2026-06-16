@@ -53,7 +53,14 @@ export const AuthProvider = ({ children }) => {
         credentials: 'include'
       });
       
-      const data = await response.json();
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        data = { message: text || 'Login failed' };
+      }
+
       console.log('AuthContext: Login response status:', response.status);
       
       if (response.ok) {

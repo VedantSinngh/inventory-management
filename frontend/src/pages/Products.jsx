@@ -21,12 +21,38 @@ const Products = () => {
 
   const categories = [...new Set(products.map(p => p.category))];
 
+  const normalizePayload = (data, isEdit) => {
+    const payload = {
+      name: data.name?.trim(),
+      sku: data.sku?.trim(),
+      category: data.category?.trim(),
+      price: data.price === '' ? undefined : Number(data.price),
+      stock: data.stock === '' ? undefined : Number(data.stock),
+      lowStockThreshold: data.lowStockThreshold === '' ? undefined : Number(data.lowStockThreshold),
+      warehouse: data.warehouse || undefined,
+      supplier: data.supplier?.trim() || undefined
+    };
+
+    if (isEdit) {
+      delete payload.stock;
+    }
+
+    Object.keys(payload).forEach((key) => {
+      if (payload[key] === undefined || payload[key] === '') {
+        delete payload[key];
+      }
+    });
+
+    return payload;
+  };
+
   const handleSave = async (formData) => {
     try {
+      const payload = normalizePayload(formData, !!editingProduct);
       if (editingProduct) {
-        await api.updateProduct(editingProduct._id, formData);
+        await api.updateProduct(editingProduct._id, payload);
       } else {
-        await api.createProduct(formData);
+        await api.createProduct(payload);
       }
       setIsModalOpen(false);
       fetchProducts();
@@ -108,6 +134,7 @@ const Products = () => {
                 </td>
                 <td style={{ textAlign: 'right' }}>
                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    <button className="btn-outline" onClick={(e) => { e.stopPropagation(); window.open(`/api/products/${product.sku}/barcode`, '_blank'); }}>BARCODE</button>
                     <button className="btn-outline" onClick={(e) => { e.stopPropagation(); openEdit(product); }}>EDIT</button>
                   </div>
                 </td>

@@ -9,9 +9,10 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
 
 // Create axios-like API helper
 const createApiClient = (token) => {
+  const sanitizeUrl = (url) => url.startsWith('/api') ? url.substring(4) : url;
   return {
     get: async (url, config = {}) => {
-      const response = await fetch(`${API_URL}${url}`, {
+      const response = await fetch(`${API_URL}${sanitizeUrl(url)}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -24,7 +25,7 @@ const createApiClient = (token) => {
       return response.json();
     },
     post: async (url, data, config = {}) => {
-      const response = await fetch(`${API_URL}${url}`, {
+      const response = await fetch(`${API_URL}${sanitizeUrl(url)}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -38,7 +39,7 @@ const createApiClient = (token) => {
       return response.json();
     },
     put: async (url, data, config = {}) => {
-      const response = await fetch(`${API_URL}${url}`, {
+      const response = await fetch(`${API_URL}${sanitizeUrl(url)}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -114,6 +115,54 @@ export const InventoryProvider = ({ children }) => {
     }
   };
 
+  const fetchAlerts = async () => {
+    if (!user || !user.token) return;
+    try {
+      const res = await fetch(`${API_URL}/alerts?limit=100`, {
+        headers: { Authorization: `Bearer ${user.token}` },
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAlerts(data.data || data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching alerts:', error);
+    }
+  };
+
+  const fetchShipments = async () => {
+    if (!user || !user.token) return;
+    try {
+      const res = await fetch(`${API_URL}/shipments?limit=100`, {
+        headers: { Authorization: `Bearer ${user.token}` },
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setShipments(data.data || data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching shipments:', error);
+    }
+  };
+
+  const fetchBatches = async () => {
+    if (!user || !user.token) return;
+    try {
+      const res = await fetch(`${API_URL}/batches?limit=100`, {
+        headers: { Authorization: `Bearer ${user.token}` },
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBatches(data.data || data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching batches:', error);
+    }
+  };
+
   useEffect(() => {
     if (user && user.token) {
       // Create API client
@@ -122,7 +171,7 @@ export const InventoryProvider = ({ children }) => {
 
       setLoading(true);
       
-      Promise.all([fetchProducts(), fetchOrders(), fetchWarehouses()])
+      Promise.all([fetchProducts(), fetchOrders(), fetchWarehouses(), fetchAlerts(), fetchShipments(), fetchBatches()])
         .then(() => setLoading(false))
         .catch((err) => {
           console.error('Error fetching data:', err);
@@ -213,6 +262,9 @@ export const InventoryProvider = ({ children }) => {
       fetchProducts,
       fetchOrders,
       fetchWarehouses,
+      fetchAlerts,
+      fetchShipments,
+      fetchBatches,
       socketConnected,
       loading,
       api

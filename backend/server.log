@@ -1,0 +1,13 @@
+
+✅ Environment Validation Successful
+   Node Environment: development
+   Server Port: 5000
+   CORS Origin: http://localhost:5173
+   Email Service: SendGrid configured
+
+Attempting to connect to database...
+(node:14356) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+MongoDB Connected: localhost
+Database connected successfully!
+Starting server on port 5000...

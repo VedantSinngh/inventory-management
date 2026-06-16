@@ -16,8 +16,8 @@ const SimpleInventoryChart = ({ products }) => {
   const data = generateWeekData();
 
   return (
-    <div className="card" style={{ height: '350px' }}>
-      <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '20px', textTransform: 'uppercase' }}>
+    <div className="card" style={{ height: '260px', padding: '16px' }}>
+      <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', textTransform: 'uppercase' }}>
         📊 Weekly Inventory Movement
       </h3>
       <ResponsiveContainer width="100%" height="100%">

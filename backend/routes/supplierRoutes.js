@@ -191,4 +191,47 @@ router.post('/:id/sync', protect, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/suppliers/:id/performance/recalculate
+ * Recalculate mean lead time and standard deviation based on delivery history
+ */
+router.post('/:id/performance/recalculate', protect, async (req, res) => {
+  try {
+    const supplier = await Supplier.findOne({ _id: req.params.id, deletedAt: null });
+
+    if (!supplier) {
+      return res.status(404).json({ message: 'Supplier not found' });
+    }
+
+    const history = supplier.leadTimeHistory || [];
+    if (history.length === 0) {
+      return res.json({ message: 'No delivery history recorded for supplier', supplier });
+    }
+
+    const simpleStats = (await import('simple-statistics')).default;
+    const leadTimes = history.map(h => h.leadTimeDays);
+
+    const meanVal = simpleStats.mean(leadTimes);
+    const stdDevVal = leadTimes.length > 1 ? simpleStats.standardDeviation(leadTimes) : 2.1;
+
+    supplier.leadTime = Math.ceil(meanVal);
+    supplier.leadTimeStdDev = parseFloat(stdDevVal.toFixed(2));
+    
+    // Recalculate on-time delivery percentage
+    const onTimeCount = history.filter(h => h.actualDate <= h.promisedDate).length;
+    supplier.performance.onTimeDelivery = Math.round((onTimeCount / history.length) * 100);
+
+    await supplier.save();
+
+    res.json({
+      message: 'Supplier performance metrics recalculated',
+      leadTime: supplier.leadTime,
+      leadTimeStdDev: supplier.leadTimeStdDev,
+      onTimeDelivery: supplier.performance.onTimeDelivery
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error recalculating supplier performance', error: error.message });
+  }
+});
+
 export default router;

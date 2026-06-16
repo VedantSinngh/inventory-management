@@ -193,4 +193,64 @@ router.delete('/:id', protect, authorize('ADMIN'), async (req, res) => {
   }
 });
 
+// Get barcode PNG stream for a SKU
+router.get('/:sku/barcode', protect, async (req, res) => {
+  try {
+    const { sku } = req.params;
+    const bwipjs = (await import('bwip-js')).default;
+    const pngBuffer = await bwipjs.toBuffer({
+      bcid: 'code128',
+      text: sku,
+      scale: 3,
+      height: 10,
+      includetext: true,
+      textxalign: 'center',
+    });
+    res.type('png');
+    res.send(pngBuffer);
+  } catch (error) {
+    res.status(500).json({ message: 'Error generating barcode', error: error.message });
+  }
+});
+
+// Scan-to-update stock or inspect SKU during audits
+router.post('/scan-update', protect, authorize(['ADMIN', 'MANAGER']), async (req, res) => {
+  try {
+    const { sku, quantityAdjustment, actionType, notes } = req.body;
+
+    const product = await Product.findOne({ sku, deletedAt: null });
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found with SKU: ' + sku });
+    }
+
+    if (actionType === 'AUDIT') {
+      product.stock = quantityAdjustment;
+    } else {
+      product.stock += quantityAdjustment;
+    }
+
+    await product.save();
+
+    await AuditLog.create({
+      action: actionType === 'AUDIT' ? 'TRANSFER' : 'STOCK_IN',
+      entityType: 'Product',
+      entityId: product._id,
+      user: req.user._id,
+      details: {
+        action: actionType,
+        adjustment: quantityAdjustment,
+        newStock: product.stock,
+        notes: notes || 'Barcode/QR Scan trigger'
+      }
+    });
+
+    const io = req.app.get('io');
+    if (io) io.emit('product-updated', product);
+
+    res.json({ message: 'Stock updated via barcode scan', product });
+  } catch (error) {
+    res.status(500).json({ message: 'Error processing scan update', error: error.message });
+  }
+});
+
 export default router;

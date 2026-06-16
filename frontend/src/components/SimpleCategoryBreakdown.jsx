@@ -22,12 +22,12 @@ const SimpleCategoryBreakdown = ({ products }) => {
   const totalStock = categoryData.reduce((sum, c) => sum + c.stock, 0);
 
   return (
-    <div className="card" style={{ height: '350px', display: 'flex', flexDirection: 'column' }}>
-      <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '20px', textTransform: 'uppercase' }}>
+    <div className="card" style={{ height: '260px', display: 'flex', flexDirection: 'column', padding: '16px' }}>
+      <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', textTransform: 'uppercase' }}>
         📦 Stock by Category
       </h3>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto' }}>
         {categoryData.length === 0 ? (
           <p style={{ color: 'var(--color-text-muted)', fontSize: '13px', textAlign: 'center', marginTop: '20px' }}>
             No products yet
@@ -45,7 +45,7 @@ const SimpleCategoryBreakdown = ({ products }) => {
                 </div>
                 <div style={{
                   width: '100%',
-                  height: '24px',
+                  height: '16px',
                   backgroundColor: 'var(--color-bg-primary)',
                   borderRadius: '4px',
                   overflow: 'hidden',

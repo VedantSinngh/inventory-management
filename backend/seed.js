@@ -5,6 +5,7 @@ import Product from './models/Product.js';
 import Warehouse from './models/Warehouse.js';
 import Order from './models/Order.js';
 import AuditLog from './models/AuditLog.js';
+import Supplier from './models/Supplier.js';
 
 dotenv.config();
 
@@ -18,7 +19,8 @@ const seed = async () => {
       Product.deleteMany({}),
       Warehouse.deleteMany({}),
       Order.deleteMany({}),
-      AuditLog.deleteMany({})
+      AuditLog.deleteMany({}),
+      Supplier.deleteMany({})
     ]);
 
     console.log('👤 Creating users...');
@@ -27,19 +29,77 @@ const seed = async () => {
         name: 'System Admin',
         email: 'admin@system.core',
         password: 'admin123',
-        role: 'ADMIN'
+        role: 'ADMIN',
+        isVerified: true,
+        status: 'ACTIVE'
       },
       {
         name: 'Manager User',
         email: 'manager@system.core',
         password: 'manager123',
-        role: 'MANAGER'
+        role: 'MANAGER',
+        isVerified: true,
+        status: 'ACTIVE'
       },
       {
         name: 'Staff User',
         email: 'staff@system.core',
         password: 'staff123',
-        role: 'STAFF'
+        role: 'STAFF',
+        isVerified: true,
+        status: 'ACTIVE'
+      }
+    ]);
+
+    console.log('🏢 Creating suppliers...');
+    const suppliers = await Supplier.create([
+      {
+        name: 'TechCorp Inc',
+        code: 'SUP001',
+        contactInfo: { email: 'contact@techcorp.com', phone: '123-456-7890' },
+        createdBy: users[0]._id
+      },
+      {
+        name: 'Peripherals Ltd',
+        code: 'SUP002',
+        contactInfo: { email: 'info@peripherals.com', phone: '098-765-4321' },
+        createdBy: users[0]._id
+      },
+      {
+        name: 'Cable Manufacturers',
+        code: 'SUP003',
+        contactInfo: { email: 'sales@cablemans.com', phone: '555-555-5555' },
+        createdBy: users[0]._id
+      },
+      {
+        name: 'Display Tech',
+        code: 'SUP004',
+        contactInfo: { email: 'support@displaytech.com' },
+        createdBy: users[0]._id
+      },
+      {
+        name: 'Input Devices Co',
+        code: 'SUP005',
+        contactInfo: { email: 'orders@inputco.com' },
+        createdBy: users[0]._id
+      },
+      {
+        name: 'Lighting Solutions',
+        code: 'SUP006',
+        contactInfo: { email: 'hello@lightingsol.com' },
+        createdBy: users[0]._id
+      },
+      {
+        name: 'Audio Expert',
+        code: 'SUP007',
+        contactInfo: { email: 'pro@audioexpert.com' },
+        createdBy: users[0]._id
+      },
+      {
+        name: 'Vision Tech',
+        code: 'SUP008',
+        contactInfo: { email: 'sales@visiontech.com' },
+        createdBy: users[0]._id
       }
     ]);
 
@@ -75,7 +135,7 @@ const seed = async () => {
         stock: 45,
         lowStockThreshold: 10,
         warehouse: warehouses[0]._id,
-        supplier: 'TechCorp Inc',
+        supplier: suppliers[0]._id,
         createdBy: users[1]._id
       },
       {
@@ -86,7 +146,7 @@ const seed = async () => {
         stock: 150,
         lowStockThreshold: 50,
         warehouse: warehouses[0]._id,
-        supplier: 'Peripherals Ltd',
+        supplier: suppliers[1]._id,
         createdBy: users[1]._id
       },
       {
@@ -97,7 +157,7 @@ const seed = async () => {
         stock: 300,
         lowStockThreshold: 100,
         warehouse: warehouses[0]._id,
-        supplier: 'Cable Manufacturers',
+        supplier: suppliers[2]._id,
         createdBy: users[1]._id
       },
       {
@@ -108,7 +168,7 @@ const seed = async () => {
         stock: 25,
         lowStockThreshold: 8,
         warehouse: warehouses[1]._id,
-        supplier: 'Display Tech',
+        supplier: suppliers[3]._id,
         createdBy: users[1]._id
       },
       {
@@ -119,7 +179,7 @@ const seed = async () => {
         stock: 5,
         lowStockThreshold: 15,
         warehouse: warehouses[1]._id,
-        supplier: 'Input Devices Co',
+        supplier: suppliers[4]._id,
         createdBy: users[1]._id
       },
       {
@@ -130,7 +190,7 @@ const seed = async () => {
         stock: 60,
         lowStockThreshold: 20,
         warehouse: warehouses[2]._id,
-        supplier: 'Lighting Solutions',
+        supplier: suppliers[5]._id,
         createdBy: users[1]._id
       },
       {
@@ -141,7 +201,7 @@ const seed = async () => {
         stock: 35,
         lowStockThreshold: 10,
         warehouse: warehouses[2]._id,
-        supplier: 'Audio Expert',
+        supplier: suppliers[6]._id,
         createdBy: users[1]._id
       },
       {
@@ -152,7 +212,7 @@ const seed = async () => {
         stock: 2,
         lowStockThreshold: 12,
         warehouse: warehouses[0]._id,
-        supplier: 'Vision Tech',
+        supplier: suppliers[7]._id,
         createdBy: users[1]._id
       }
     ]);
@@ -238,39 +298,7 @@ const seed = async () => {
       }
     ]);
 
-    // Update product stock based on orders
-    await Product.findByIdAndUpdate(products[0]._id, { stock: 43 });
-    await Product.findByIdAndUpdate(products[1]._id, { stock: 145 });
-    await Product.findByIdAndUpdate(products[2]._id, { stock: 400 });
-    await Product.findByIdAndUpdate(products[3]._id, { stock: 24 });
-    await Product.findByIdAndUpdate(products[5]._id, { stock: 57 });
-    await Product.findByIdAndUpdate(products[6]._id, { stock: 34 });
-
     console.log('\n✅ Seeding completed successfully!\n');
-    console.log('📊 Seed Statistics:');
-    console.log(`   Users: ${users.length}`);
-    console.log(`   Warehouses: ${warehouses.length}`);
-    console.log(`   Products: ${products.length}`);
-    console.log(`   Orders: ${orders.length}`);
-    console.log('\n👤 Test User Credentials:');
-    console.log('   Admin:');
-    console.log('   - Email: admin@system.core');
-    console.log('   - Password: admin123');
-    console.log('   - Role: ADMIN');
-    console.log('\n   Manager:');
-    console.log('   - Email: manager@system.core');
-    console.log('   - Password: manager123');
-    console.log('   - Role: MANAGER');
-    console.log('\n   Staff:');
-    console.log('   - Email: staff@system.core');
-    console.log('   - Password: staff123');
-    console.log('   - Role: STAFF');
-    console.log('\n📦 Sample Products:');
-    products.slice(0, 3).forEach((p, idx) => {
-      console.log(`   ${idx + 1}. ${p.name} (SKU: ${p.sku})`);
-    });
-    console.log('\n');
-
     process.exit(0);
   } catch (error) {
     console.error('❌ Error seeding database:', error);

@@ -1,10 +1,10 @@
-import sgMail from '@sendgrid/mail';
+import nodemailer from 'nodemailer';
 import logger from './logger.js';
 
 /**
  * Email Service
  * Handles all email communications (verification, reset password, notifications)
- * Supports both development (console) and production (SendGrid) modes
+ * Supports both development (console) and production (SMTP/Nodemailer) modes
  */
 
 class EmailService {
@@ -12,14 +12,32 @@ class EmailService {
     this.isConfigured = false;
     this.isDevelopment = process.env.NODE_ENV === 'development';
 
-    // Configure SendGrid in production
-    if (!this.isDevelopment && process.env.SENDGRID_API_KEY) {
-      try {
-        sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-        this.isConfigured = true;
-        logger.info('SendGrid email service configured');
-      } catch (error) {
-        logger.warn('Failed to configure SendGrid:', error.message);
+    // Configure Nodemailer SMTP in production/non-dev
+    if (!this.isDevelopment) {
+      const smtpUser = process.env.SMTP_USER;
+      const smtpPass = process.env.SMTP_PASS;
+      const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+      const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
+
+      if (smtpUser && smtpPass) {
+        try {
+          this.transporter = nodemailer.createTransport({
+            host: smtpHost,
+            port: smtpPort,
+            secure: false,
+            requireTLS: true,
+            auth: {
+              user: smtpUser,
+              pass: smtpPass
+            }
+          });
+          this.isConfigured = true;
+          logger.info(`Nodemailer SMTP email service configured on ${smtpHost}:${smtpPort}`);
+        } catch (error) {
+          logger.warn('Failed to configure Nodemailer SMTP transport:', error.message);
+        }
+      } else {
+        logger.warn('SMTP credentials (SMTP_USER, SMTP_PASS) not configured. Production emails will not send.');
       }
     }
 
@@ -86,6 +104,13 @@ class EmailService {
   }
 
   /**
+   * Alias for sendPasswordResetEmail
+   */
+  async sendPasswordReset(email, name, resetToken, resetLink) {
+    return this.sendPasswordResetEmail(email, name, resetToken, resetLink);
+  }
+
+  /**
    * Send welcome email to new user
    */
   async sendWelcomeEmail(email, name, role) {
@@ -137,6 +162,34 @@ class EmailService {
   }
 
   /**
+   * Alias for sendNotificationEmail
+   */
+  async sendAlertEmail(email, name, action, details) {
+    return this.sendNotificationEmail(email, name, action, details);
+  }
+
+  /**
+   * Send order confirmation email
+   */
+  async sendOrderConfirmation(email, name, order) {
+    const subject = `Order Confirmation - Order #${order._id || order.id || 'N/A'}`;
+    const html = `
+      <h2>Order Confirmation</h2>
+      <p>Hi ${name},</p>
+      <p>Your order has been confirmed successfully!</p>
+      <p>Order ID: <strong>${order._id || order.id || 'N/A'}</strong></p>
+      <p>Total Amount: <strong>$${order.totalAmount || '0.00'}</strong></p>
+      <p>Status: <strong>${order.status || 'PENDING'}</strong></p>
+    `;
+
+    return this._sendEmail(email, subject, html, {
+      type: 'order-confirmation',
+      name,
+      email
+    });
+  }
+
+  /**
    * Internal method to send email
    */
   async _sendEmail(to, subject, html, metadata = {}) {
@@ -148,25 +201,25 @@ class EmailService {
       return { success: true, mode: 'development', message: 'Email logged to console' };
     }
 
-    // Production mode: send via SendGrid
+    // Production mode: send via SMTP/Nodemailer
     if (!this.isConfigured) {
-      logger.warn('SendGrid not configured, email not sent:', { to, subject, ...metadata });
+      logger.warn('Nodemailer SMTP not configured, email not sent:', { to, subject, ...metadata });
       return { success: false, error: 'Email service not configured' };
     }
 
     try {
-      const fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@system.core';
-      const msg = {
-        to,
+      const fromEmail = process.env.EMAIL_FROM || process.env.SMTP_USER || 'noreply@system.core';
+      const mailOptions = {
         from: fromEmail,
+        to,
         subject,
         html,
         replyTo: 'support@system.core'
       };
 
-      const result = await sgMail.send(msg);
+      const result = await this.transporter.sendMail(mailOptions);
       logger.info('Email sent successfully', { to, subject, type: metadata.type });
-      return { success: true, messageId: result[0].headers['x-message-id'] };
+      return { success: true, messageId: result.messageId };
     } catch (error) {
       logger.error('Failed to send email', {
         to,

@@ -12,9 +12,13 @@ const orderSchema = new mongoose.Schema({
     batch: { type: mongoose.Schema.Types.ObjectId, ref: 'Batch' },
     quantity: { type: Number, required: true },
     priceAtTime: { type: Number, required: true },
+    cogs: { type: Number, default: 0 },
+    margin: { type: Number, default: 0 },
     serialNumbers: [String]
   }],
   totalAmount: { type: Number, required: true },
+  totalCogs: { type: Number, default: 0 },
+  totalMargin: { type: Number, default: 0 },
   shippingAddress: {
     street: String,
     city: String,

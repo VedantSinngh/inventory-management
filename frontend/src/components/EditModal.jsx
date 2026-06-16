@@ -21,7 +21,7 @@ const EditModal = ({ isOpen, onClose, onSave, product }) => {
         supplier: product.supplier || ''
       });
     } else {
-      setFormData({ name: '', sku: '', category: '', price: '', stock: '', lowStockThreshold: 10, warehouse: '', supplier: '' });
+          setFormData({ name: '', sku: '', category: '', price: '', stock: '', lowStockThreshold: 10, warehouse: '', supplier: '' });
     }
     setErrors({});
   }, [product, isOpen]);

@@ -45,6 +45,11 @@ const productSchema = new mongoose.Schema({
   autoReorder: { type: Boolean, default: false },
   reorderPoint: { type: Number, default: 0 },
   reorderQuantity: { type: Number, default: 0 },
+  avgLeadTimeDays: { type: Number, default: 14 },
+  leadTimeStdDev: { type: Number, default: 2.1 },
+  safetyStockLevel: { type: Number, default: 0 },
+  barcodeUrl: String,
+  upc: { type: String, unique: true, sparse: true },
   // Tags and attributes
   tags: [String],
   attributes: mongoose.Schema.Types.Mixed, // Flexible attributes

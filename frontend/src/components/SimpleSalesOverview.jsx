@@ -19,8 +19,8 @@ const SimpleSalesOverview = ({ orders }) => {
   const profit = salesRevenue - purchaseCost;
 
   return (
-    <div className="card" style={{ height: '350px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <h3 style={{ fontSize: '16px', fontWeight: '600', textTransform: 'uppercase' }}>
+    <div className="card" style={{ height: '260px', display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px' }}>
+      <h3 style={{ fontSize: '14px', fontWeight: '600', textTransform: 'uppercase' }}>
         💰 This Month Overview
       </h3>
 
@@ -37,11 +37,11 @@ const SimpleSalesOverview = ({ orders }) => {
           No orders this month yet
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {/* Sales Revenue */}
           <div style={{
             backgroundColor: 'var(--color-bg-primary)',
-            padding: '16px',
+            padding: '10px 12px',
             borderRadius: '6px',
             border: '2px solid #10B981'
           }}>
@@ -52,7 +52,7 @@ const SimpleSalesOverview = ({ orders }) => {
               </span>
             </div>
             <div style={{
-              fontSize: '28px',
+              fontSize: '22px',
               fontFamily: 'var(--font-heading)',
               fontWeight: 'bold',
               color: '#10B981'
@@ -64,7 +64,7 @@ const SimpleSalesOverview = ({ orders }) => {
           {/* Purchase Cost */}
           <div style={{
             backgroundColor: 'var(--color-bg-primary)',
-            padding: '16px',
+            padding: '10px 12px',
             borderRadius: '6px',
             border: '2px solid #3B82F6'
           }}>
@@ -75,7 +75,7 @@ const SimpleSalesOverview = ({ orders }) => {
               </span>
             </div>
             <div style={{
-              fontSize: '28px',
+              fontSize: '22px',
               fontFamily: 'var(--font-heading)',
               fontWeight: 'bold',
               color: '#3B82F6'
@@ -87,7 +87,7 @@ const SimpleSalesOverview = ({ orders }) => {
           {/* Profit */}
           <div style={{
             backgroundColor: 'var(--color-bg-primary)',
-            padding: '16px',
+            padding: '10px 12px',
             borderRadius: '6px',
             border: `2px solid ${profit >= 0 ? '#10B981' : '#EF4444'}`
           }}>
@@ -102,7 +102,7 @@ const SimpleSalesOverview = ({ orders }) => {
               </span>
             </div>
             <div style={{
-              fontSize: '28px',
+              fontSize: '22px',
               fontFamily: 'var(--font-heading)',
               fontWeight: 'bold',
               color: profit >= 0 ? '#10B981' : '#EF4444'

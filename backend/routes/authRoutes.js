@@ -13,13 +13,13 @@ const router = express.Router();
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
-  message: 'Too many login attempts, please try again later',
+  message: { message: 'Too many login attempts, please try again later' },
   standardHeaders: true,
   legacyHeaders: false
 });
 
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '30d' });
 };
 
 // Login endpoint with validation and rate limiting
@@ -108,7 +108,8 @@ router.post(
       });
 
       // Send verification email
-      const verificationLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify?token=${verificationToken}`;
+      const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const verificationLink = `${baseUrl}/verify?token=${verificationToken}`;
       await emailService.sendVerificationEmail(
         newUser.email,
         newUser.name,
@@ -168,6 +169,37 @@ router.post(
     }
   }
 );
+
+// Public: Verify email with token (GET request from UI)
+router.get('/verify', async (req, res) => {
+  const { token } = req.query;
+
+  if (!token) {
+    return res.status(400).json({ message: 'Verification token is required' });
+  }
+
+  try {
+    const user = await User.findOne({
+      verificationToken: token,
+      verificationTokenExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired verification token' });
+    }
+
+    // Mark user as verified
+    user.isVerified = true;
+    user.verificationToken = null;
+    user.verificationTokenExpires = null;
+    user.status = 'ACTIVE';
+    await user.save();
+
+    res.json({ message: 'Email verified successfully. You can now login.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
 
 // Admin only: Create new user (registration endpoint)
 router.post(
@@ -336,7 +368,7 @@ router.post(
   rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 3,
-    message: 'Too many password reset attempts, please try again later'
+    message: { message: 'Too many password reset attempts, please try again later' }
   }),
   body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
   async (req, res) => {

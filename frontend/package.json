@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "echo '✅ No linting tools configured'",
+    "test": "echo '✅ No tests configured'",
+    "type-check": "echo '✅ TypeScript not enabled'"
   },
   "dependencies": {
     "chart.js": "^4.5.1",
@@ -16,7 +19,8 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.16.0",
     "recharts": "^2.8.0",
-    "socket.io-client": "^4.7.2"
+    "socket.io-client": "^4.7.2",
+    "html5-qrcode": "^2.3.8"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.3",

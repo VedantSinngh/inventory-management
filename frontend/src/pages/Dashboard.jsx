@@ -34,10 +34,10 @@ const Dashboard = () => {
   const fetchAdvancedMetrics = async () => {
     try {
       const [shipmentsRes, batchesRes, alertsRes, forecastsRes] = await Promise.all([
-        api.get('/api/shipments?limit=1').catch(() => ({ data: { pagination: { total: 0 }, shipments: [] } })),
-        api.get('/api/batches/analytics/overview').catch(() => ({})),
-        api.get('/api/alerts/analytics/overview').catch(() => ({})),
-        api.get('/api/forecasts/analytics/overview').catch(() => ({}))
+        api.get('/shipments?limit=1').catch(() => ({ data: { pagination: { total: 0 }, shipments: [] } })),
+        api.get('/batches/analytics/overview').catch(() => ({})),
+        api.get('/alerts/analytics/overview').catch(() => ({})),
+        api.get('/forecasts/analytics/overview').catch(() => ({}))
       ]);
 
       setAdvancedMetrics({
@@ -71,14 +71,14 @@ const Dashboard = () => {
   }));
 
   const StatCard = ({ title, value, icon: Icon, color }) => (
-    <div className="card" style={{ flex: 1, minWidth: '200px' }}>
+    <div className="card" style={{ flex: 1, minWidth: '200px', padding: '14px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', marginBottom: '8px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>
             {title}
           </div>
           <div style={{
-            fontSize: '32px',
+            fontSize: '28px',
             fontFamily: 'var(--font-heading)',
             fontWeight: 'bold',
             color: color || 'var(--color-text-heading)'
@@ -86,13 +86,13 @@ const Dashboard = () => {
             {value}
           </div>
         </div>
-        {Icon && <Icon size={24} color={color || 'var(--color-accent)'} strokeWidth={1.5} />}
+        {Icon && <Icon size={22} color={color || 'var(--color-accent)'} strokeWidth={1.5} />}
       </div>
     </div>
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Alerts */}
       {(outOfStockProducts.length > 0 || lowStockProducts.length > 0 || advancedMetrics.alerts.critical > 0) && (
         <div className="alert-banner" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -110,8 +110,8 @@ const Dashboard = () => {
       {/* Primary KPI Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '16px'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap: '12px'
       }}>
         <StatCard
           title="Total Products"
@@ -141,11 +141,11 @@ const Dashboard = () => {
 
       {/* Advanced Features KPI Cards */}
       {!loading && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '16px'
-        }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap: '12px'
+      }}>
           <StatCard
             title="Active Shipments"
             value={advancedMetrics.shipments.inTransit}
@@ -174,7 +174,7 @@ const Dashboard = () => {
       )}
 
       {/* Quick Actions */}
-      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         <button
           onClick={() => exportCSV(products, 'inventory_export.csv')}
           className="btn-outline"
@@ -182,7 +182,7 @@ const Dashboard = () => {
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            padding: '12px 20px'
+            padding: '10px 16px'
           }}
         >
           <Download size={16} /> EXPORT INVENTORY
@@ -193,7 +193,7 @@ const Dashboard = () => {
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            padding: '12px 20px',
+            padding: '10px 16px',
             backgroundColor: 'var(--color-accent)',
             color: 'white',
             border: 'none',
@@ -210,8 +210,8 @@ const Dashboard = () => {
       {/* Charts Row 1 */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-        gap: '20px'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        gap: '16px'
       }}>
         <SimpleInventoryChart products={products} />
         <SimpleCategoryBreakdown products={products} />

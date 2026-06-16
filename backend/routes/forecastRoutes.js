@@ -6,11 +6,15 @@ import ForecastingService from '../services/forecastingService.js';
 const router = express.Router();
 
 // Generate forecast for a product
-router.post('/generate/:productId', protect, async (req, res) => {
+router.post('/generate', protect, async (req, res) => {
   try {
-    const { method, period, historicalPeriodMonths, forecastPeriodMonths } = req.body;
+    const { productId, method, period, historicalPeriodMonths, forecastPeriodMonths } = req.body;
 
-    const forecast = await ForecastingService.generateForecast(req.params.productId, {
+    if (!productId) {
+      return res.status(400).json({ message: 'Product ID is required' });
+    }
+
+    const forecast = await ForecastingService.generateForecast(productId, {
       method: method || 'SIMPLE_MOVING_AVERAGE',
       period: period || 'MONTHLY',
       historicalPeriodMonths: historicalPeriodMonths || 12,

@@ -8,6 +8,54 @@ import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
+const TRANSACTION_UNSUPPORTED_ERRORS = [
+  'Transaction numbers are only allowed on a replica set member or mongos',
+  'Transactions are not supported',
+  'replica set'
+];
+
+const isTransactionUnsupportedError = (error) => {
+  const message = error?.message || '';
+  return TRANSACTION_UNSUPPORTED_ERRORS.some(text => message.includes(text));
+};
+
+const runWithOptionalTransaction = async (work) => {
+  let session;
+
+  try {
+    session = await mongoose.startSession();
+    session.startTransaction();
+    const result = await work(session);
+    await session.commitTransaction();
+    return result;
+  } catch (error) {
+    if (session) {
+      try {
+        await session.abortTransaction();
+      } catch (abortError) {
+        // Ignore abort errors
+      }
+    }
+
+    if (isTransactionUnsupportedError(error)) {
+      return work(null);
+    }
+
+    throw error;
+  } finally {
+    if (session) {
+      await session.endSession();
+    }
+  }
+};
+
+const createAuditLogs = (entries, session) => {
+  if (session) {
+    return AuditLog.create(entries, { session });
+  }
+  return AuditLog.create(entries);
+};
+
 // Order validation schemas
 const validateOrderCreate = [
   body('type')
@@ -79,89 +127,143 @@ router.post('/', protect, validateOrderCreate, async (req, res) => {
 
   const { type, items } = req.body;
   let totalAmount = 0;
-
-  // Start a MongoDB session for transaction
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  let totalCogs = 0;
 
   try {
-    // Calculate total and validate items exist
-    for (const item of items) {
-      const product = await Product.findById(item.product).session(session);
-      
-      if (!product) {
-        await session.abortTransaction();
-        return res.status(404).json({ message: `Product not found: ${item.product}` });
+    const createdOrder = await runWithOptionalTransaction(async (session) => {
+      // Calculate total and validate items exist
+      for (const item of items) {
+        const product = session
+          ? await Product.findById(item.product).session(session)
+          : await Product.findById(item.product);
+
+        if (!product) {
+          const notFoundError = new Error(`Product not found: ${item.product}`);
+          notFoundError.status = 404;
+          throw notFoundError;
+        }
+
+        // For SALES orders, check stock availability
+        if (type === 'SALES' && product.stock < item.quantity) {
+          const stockError = new Error(
+            `Insufficient stock for product: ${product.name}. Available: ${product.stock}, Requested: ${item.quantity}`
+          );
+          stockError.status = 400;
+          throw stockError;
+        }
+
+        totalAmount += item.priceAtTime * item.quantity;
       }
 
-      // For SALES orders, check stock availability
-      if (type === 'SALES' && product.stock < item.quantity) {
-        await session.abortTransaction();
-        return res.status(400).json({
-          message: `Insufficient stock for product: ${product.name}. Available: ${product.stock}, Requested: ${item.quantity}`
-        });
+      const sessionOptions = session ? { session } : undefined;
+
+      // Update stock for all items atomically when possible
+      for (const item of items) {
+        const product = session
+          ? await Product.findById(item.product).session(session)
+          : await Product.findById(item.product);
+
+        if (type === 'SALES') {
+          // Decrement stock for sales with atomic $inc
+          await Product.findByIdAndUpdate(
+            item.product,
+            { $inc: { stock: -item.quantity } },
+            sessionOptions
+          );
+
+          // FIFO batch deduction
+          const Batch = (await import('../models/Batch.js')).default;
+          const activeBatches = session
+            ? await Batch.find({ product: item.product, quantityAvailable: { $gt: 0 } }).sort({ fifoPosition: 1 }).session(session)
+            : await Batch.find({ product: item.product, quantityAvailable: { $gt: 0 } }).sort({ fifoPosition: 1 });
+
+          let remainingToDeduct = item.quantity;
+          let calculatedCogs = 0;
+
+          for (const batch of activeBatches) {
+            if (remainingToDeduct <= 0) break;
+            const deduct = Math.min(batch.quantityAvailable, remainingToDeduct);
+            batch.quantityAvailable -= deduct;
+            calculatedCogs += deduct * batch.unitCost;
+            remainingToDeduct -= deduct;
+            await batch.save(sessionOptions);
+          }
+
+          // Fallback to product unit cost if batches run dry
+          if (remainingToDeduct > 0) {
+            calculatedCogs += remainingToDeduct * (product.cost || 0);
+          }
+
+          item.cogs = calculatedCogs;
+          item.margin = (item.priceAtTime * item.quantity) - calculatedCogs;
+          totalCogs += calculatedCogs;
+
+          await createAuditLogs([{
+            action: 'STOCK_OUT',
+            entityType: 'Product',
+            entityId: item.product,
+            user: req.user._id,
+            details: { quantity: item.quantity, orderType: 'SALES', cogs: calculatedCogs }
+          }], session);
+        } else if (type === 'PURCHASE') {
+          // Increment stock for purchases with atomic $inc
+          await Product.findByIdAndUpdate(
+            item.product,
+            { $inc: { stock: item.quantity } },
+            sessionOptions
+          );
+
+          // Auto-create a batch for purchases to keep track of new unit costs
+          const Batch = (await import('../models/Batch.js')).default;
+          const batchNumber = 'BAT-' + Math.floor(100000 + Math.random() * 900000);
+          const newBatch = new Batch({
+            batchNumber,
+            product: item.product,
+            supplier: product.supplier || req.user._id, // fallback
+            manufacturingDate: new Date(),
+            expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // default 1 year
+            quantityReceived: item.quantity,
+            quantityAvailable: item.quantity,
+            unitCost: item.priceAtTime,
+            qualityStatus: 'APPROVED',
+            createdBy: req.user._id
+          });
+          await newBatch.save(sessionOptions);
+
+          await createAuditLogs([{
+            action: 'STOCK_IN',
+            entityType: 'Product',
+            entityId: item.product,
+            user: req.user._id,
+            details: { quantity: item.quantity, orderType: 'PURCHASE' }
+          }], session);
+        }
       }
 
-      totalAmount += item.priceAtTime * item.quantity;
-    }
+      // Create the order (calculated totalAmount, not from client)
+      const order = new Order({
+        type,
+        items,
+        totalAmount,
+        totalCogs,
+        totalMargin: type === 'SALES' ? (totalAmount - totalCogs) : 0,
+        createdBy: req.user._id,
+        status: 'PENDING'
+      });
 
-    // Update stock for all items atomically
-    for (const item of items) {
-      if (type === 'SALES') {
-        // Decrement stock for sales with atomic $inc
-        await Product.findByIdAndUpdate(
-          item.product,
-          { $inc: { stock: -item.quantity } },
-          { session }
-        );
+      const savedOrder = await order.save(sessionOptions);
 
-        await AuditLog.create([{
-          action: 'STOCK_OUT',
-          entityType: 'Product',
-          entityId: item.product,
-          user: req.user._id,
-          details: { quantity: item.quantity, orderType: 'SALES' }
-        }], { session });
-      } else if (type === 'PURCHASE') {
-        // Increment stock for purchases with atomic $inc
-        await Product.findByIdAndUpdate(
-          item.product,
-          { $inc: { stock: item.quantity } },
-          { session }
-        );
+      // Log order creation
+      await createAuditLogs([{
+        action: 'CREATE',
+        entityType: 'Order',
+        entityId: savedOrder._id,
+        user: req.user._id,
+        details: { type, totalAmount, itemCount: items.length, totalCogs }
+      }], session);
 
-        await AuditLog.create([{
-          action: 'STOCK_IN',
-          entityType: 'Product',
-          entityId: item.product,
-          user: req.user._id,
-          details: { quantity: item.quantity, orderType: 'PURCHASE' }
-        }], { session });
-      }
-    }
-
-    // Create the order (calculated totalAmount, not from client)
-    const order = new Order({
-      type,
-      items,
-      totalAmount,
-      createdBy: req.user._id,
-      status: 'COMPLETED'
+      return savedOrder;
     });
-
-    const createdOrder = await order.save({ session });
-
-    // Log order creation
-    await AuditLog.create([{
-      action: 'CREATE',
-      entityType: 'Order',
-      entityId: createdOrder._id,
-      user: req.user._id,
-      details: { type, totalAmount, itemCount: items.length }
-    }], { session });
-
-    // Commit transaction
-    await session.commitTransaction();
 
     // Populate and emit event
     const populatedOrder = await Order.findById(createdOrder._id)
@@ -176,10 +278,7 @@ router.post('/', protect, validateOrderCreate, async (req, res) => {
 
     res.status(201).json(populatedOrder);
   } catch (error) {
-    await session.abortTransaction();
-    res.status(500).json({ message: 'Error creating order', error: error.message });
-  } finally {
-    await session.endSession();
+    res.status(error.status || 500).json({ message: error.message || 'Error creating order', error: error.message });
   }
 });
 
@@ -237,57 +336,62 @@ router.put('/:id', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
 
 // Cancel order (MANAGER and ADMIN only) - with stock reversal
 router.post('/:id/cancel', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
-    const order = await Order.findById(req.params.id).session(session);
+    const cancelledOrder = await runWithOptionalTransaction(async (session) => {
+      const order = session
+        ? await Order.findById(req.params.id).session(session)
+        : await Order.findById(req.params.id);
 
-    if (!order) {
-      await session.abortTransaction();
-      return res.status(404).json({ message: 'Order not found' });
-    }
-
-    if (order.status === 'CANCELLED') {
-      await session.abortTransaction();
-      return res.status(400).json({ message: 'Order is already cancelled' });
-    }
-
-    // Reverse stock changes
-    for (const item of order.items) {
-      if (order.type === 'SALES') {
-        // Reverse stock out (add back)
-        await Product.findByIdAndUpdate(
-          item.product,
-          { $inc: { stock: item.quantity } },
-          { session }
-        );
-      } else if (order.type === 'PURCHASE') {
-        // Reverse stock in (remove)
-        await Product.findByIdAndUpdate(
-          item.product,
-          { $inc: { stock: -item.quantity } },
-          { session }
-        );
+      if (!order) {
+        const notFoundError = new Error('Order not found');
+        notFoundError.status = 404;
+        throw notFoundError;
       }
-    }
 
-    // Update order status
-    order.status = 'CANCELLED';
-    await order.save({ session });
+      if (order.status === 'CANCELLED') {
+        const cancelledError = new Error('Order is already cancelled');
+        cancelledError.status = 400;
+        throw cancelledError;
+      }
 
-    // Audit log
-    await AuditLog.create([{
-      action: 'UPDATE',
-      entityType: 'Order',
-      entityId: order._id,
-      user: req.user._id,
-      details: { action: 'CANCELLED', reverseReason: 'Manual cancellation' }
-    }], { session });
+      const sessionOptions = session ? { session } : undefined;
 
-    await session.commitTransaction();
+      // Reverse stock changes
+      for (const item of order.items) {
+        if (order.type === 'SALES') {
+          // Reverse stock out (add back)
+          await Product.findByIdAndUpdate(
+            item.product,
+            { $inc: { stock: item.quantity } },
+            sessionOptions
+          );
+        } else if (order.type === 'PURCHASE') {
+          // Reverse stock in (remove)
+          await Product.findByIdAndUpdate(
+            item.product,
+            { $inc: { stock: -item.quantity } },
+            sessionOptions
+          );
+        }
+      }
 
-    const populatedOrder = await Order.findById(order._id)
+      // Update order status
+      order.status = 'CANCELLED';
+      await order.save(sessionOptions);
+
+      // Audit log
+      await createAuditLogs([{
+        action: 'UPDATE',
+        entityType: 'Order',
+        entityId: order._id,
+        user: req.user._id,
+        details: { action: 'CANCELLED', reverseReason: 'Manual cancellation' }
+      }], session);
+
+      return order;
+    });
+
+    const populatedOrder = await Order.findById(cancelledOrder._id)
       .populate('items.product')
       .populate('createdBy', 'name email');
 
@@ -299,10 +403,7 @@ router.post('/:id/cancel', protect, authorize('ADMIN', 'MANAGER'), async (req, r
 
     res.json(populatedOrder);
   } catch (error) {
-    await session.abortTransaction();
-    res.status(500).json({ message: 'Error cancelling order', error: error.message });
-  } finally {
-    await session.endSession();
+    res.status(error.status || 500).json({ message: error.message || 'Error cancelling order', error: error.message });
   }
 });
 

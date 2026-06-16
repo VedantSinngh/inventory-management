@@ -22,7 +22,7 @@ const Suppliers = () => {
   const fetchSuppliers = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/suppliers?page=1&limit=20');
+      const response = await api.get('/suppliers?page=1&limit=20');
       setSuppliers(response.data.suppliers || []);
     } catch (error) {
       console.error('Error fetching suppliers:', error);
@@ -34,7 +34,7 @@ const Suppliers = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/api/suppliers', formData);
+      await api.post('/suppliers', formData);
       setFormData({
         name: '',
         contactInfo: { email: '', phone: '', website: '', address: {} },
@@ -229,11 +229,33 @@ const Suppliers = () => {
                   <span style={{ color: 'var(--color-text-secondary)' }}>On-Time:</span>
                   <span style={{ fontWeight: '600' }}>{supplier.performance?.onTimeDelivery || 95}%</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                   <span style={{ color: 'var(--color-text-secondary)' }}>Lead Time:</span>
                   <span style={{ fontWeight: '600' }}>{supplier.leadTime} days</span>
                 </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>Lead Time Std Dev:</span>
+                  <span style={{ fontWeight: '600' }}>{supplier.leadTimeStdDev || 2.1} days</span>
+                </div>
               </div>
+
+              {/* Recalculate button */}
+              <button 
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    await api.post(`/suppliers/${supplier._id}/performance/recalculate`);
+                    alert('Supplier variability recalculated successfully!');
+                    fetchSuppliers();
+                  } catch (err) {
+                    console.error(err);
+                    alert('Error: ' + err.message);
+                  }
+                }}
+                style={{ width: '100%', padding: '6px', fontSize: '12px', cursor: 'pointer', marginBottom: '12px', border: '1px solid var(--color-border)', backgroundColor: 'transparent', color: 'var(--color-text-heading)', borderRadius: '4px' }}
+              >
+                Recalculate Variability
+              </button>
 
               {/* Payment Terms */}
               <div style={{

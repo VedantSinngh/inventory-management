@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
@@ -7,17 +7,26 @@ import Warehouses from './pages/Warehouses';
 import Users from './pages/Users';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+
+import ResetPassword from './pages/ResetPassword';
 import Shipments from './pages/Shipments';
 import Suppliers from './pages/Suppliers';
 import Batches from './pages/Batches';
 import Alerts from './pages/Alerts';
+import CycleCounts from './pages/CycleCounts';
 import Analytics from './pages/Analytics';
-import { Package, ShoppingCart, LayoutDashboard, LogOut, Warehouse, Users as UsersIcon, Truck, Building2, Boxes, AlertCircle, BarChart3 } from 'lucide-react';
+import ReorderEngine from './pages/ReorderEngine';
+import Returns from './pages/Returns';
+import DeadStock from './pages/DeadStock';
+import MobileScanner from './pages/MobileScanner';
+import VerifyEmail from './pages/VerifyEmail';
+import { Package, ShoppingCart, LayoutDashboard, LogOut, Warehouse, Users as UsersIcon, Truck, Building2, Boxes, AlertCircle, BarChart3, ClipboardList, Percent, Camera, Bell } from 'lucide-react';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import { InventoryProvider, InventoryContext } from './context/InventoryContext';
 import { ToastProvider } from './context/ToastContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import ToastContainer from './components/ToastContainer';
+import AlertCenter from './components/AlertCenter';
 
 const Sidebar = () => {
   const location = useLocation();
@@ -29,9 +38,14 @@ const Sidebar = () => {
     { path: '/suppliers', label: 'Suppliers', icon: Building2 },
     { path: '/batches', label: 'Batches', icon: Boxes },
     { path: '/alerts', label: 'Alerts', icon: AlertCircle },
+    { path: '/cycle-counts', label: 'Cycle Counts', icon: BarChart3 },
     { path: '/products', label: 'Products', icon: Package },
     { path: '/orders', label: 'Orders', icon: ShoppingCart },
     { path: '/warehouses', label: 'Warehouses', icon: Warehouse },
+    { path: '/reorders', label: 'Reorder Engine', icon: ShoppingCart },
+    { path: '/returns', label: 'Returns', icon: ClipboardList },
+    { path: '/dead-stock', label: 'Dead Stock', icon: Percent },
+    { path: '/scanner', label: 'Scanner', icon: Camera },
     ...(user?.role === 'ADMIN' ? [{ path: '/users', label: 'Users', icon: UsersIcon }] : [])
   ];
 
@@ -67,6 +81,8 @@ const Sidebar = () => {
 const Topbar = () => {
   const { user, logout } = useContext(AuthContext);
   const { socketConnected } = useContext(InventoryContext);
+  const [alertOpen, setAlertOpen] = useState(false);
+
   return (
     <div style={{
       height: '60px', backgroundColor: 'var(--color-bg-primary)',
@@ -82,8 +98,22 @@ const Topbar = () => {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
         <div style={{ fontSize: '13px' }}>{user ? user.name : 'ADMINISTRATOR'}</div>
-        <button onClick={logout} style={{ display: 'flex' }}><LogOut size={16} style={{ cursor: 'pointer', color: 'var(--color-text-secondary)' }} /></button>
+        
+        {/* Notification Bell */}
+        <button 
+          onClick={() => setAlertOpen(true)} 
+          style={{ display: 'flex', background: 'none', border: 'none', padding: 0, cursor: 'pointer', outline: 'none' }}
+          title="Open Alert Center"
+        >
+          <Bell size={18} style={{ color: 'var(--color-text-secondary)', transition: 'color 150ms' }} />
+        </button>
+
+        <button onClick={logout} style={{ display: 'flex', background: 'none', border: 'none', padding: 0, cursor: 'pointer', outline: 'none' }}>
+          <LogOut size={16} style={{ color: 'var(--color-text-secondary)' }} />
+        </button>
       </div>
+
+      <AlertCenter isOpen={alertOpen} onClose={() => setAlertOpen(false)} />
     </div>
   );
 };
@@ -129,25 +159,32 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <ErrorBoundary>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AuthProvider>
           <ToastProvider>
             <InventoryProvider>
               <ToastContainer />
-      <Routes>
-                 <Route path="/login" element={<Login />} />
-                 <Route path="/signup" element={<Signup />} />
-                 <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                 <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-                 <Route path="/shipments" element={<ProtectedRoute><Shipments /></ProtectedRoute>} />
-                 <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
-                 <Route path="/batches" element={<ProtectedRoute><Batches /></ProtectedRoute>} />
-                 <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
-                 <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
-                 <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
-                 <Route path="/warehouses" element={<ProtectedRoute><Warehouses /></ProtectedRoute>} />
-                 <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
-               </Routes>
+              <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/signup" element={<Signup />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                  <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+                  <Route path="/shipments" element={<ProtectedRoute><Shipments /></ProtectedRoute>} />
+                  <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
+                  <Route path="/batches" element={<ProtectedRoute><Batches /></ProtectedRoute>} />
+                  <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
+                  <Route path="/cycle-counts" element={<ProtectedRoute><CycleCounts /></ProtectedRoute>} />
+                  <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+                  <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
+                  <Route path="/warehouses" element={<ProtectedRoute><Warehouses /></ProtectedRoute>} />
+                  <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+                  <Route path="/reorders" element={<ProtectedRoute><ReorderEngine /></ProtectedRoute>} />
+                  <Route path="/returns" element={<ProtectedRoute><Returns /></ProtectedRoute>} />
+                  <Route path="/dead-stock" element={<ProtectedRoute><DeadStock /></ProtectedRoute>} />
+                  <Route path="/scanner" element={<ProtectedRoute><MobileScanner /></ProtectedRoute>} />
+                  <Route path="/verify" element={<VerifyEmail />} />
+                </Routes>
             </InventoryProvider>
           </ToastProvider>
         </AuthProvider>

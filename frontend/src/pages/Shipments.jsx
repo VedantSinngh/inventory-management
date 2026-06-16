@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { InventoryContext } from '../context/InventoryContext';
-import { MapPin, Calendar, Truck, AlertCircle, CheckCircle } from 'lucide-react';
+import { MapPin, Calendar, Truck, AlertCircle, CheckCircle, Navigation } from 'lucide-react';
+import RouteMap from '../components/RouteMap';
 
 const ShipmentTracker = () => {
   const { api } = useContext(InventoryContext);
@@ -8,6 +9,7 @@ const ShipmentTracker = () => {
   const [loading, setLoading] = useState(true);
   const [selectedShipment, setSelectedShipment] = useState(null);
   const [filter, setFilter] = useState('IN_TRANSIT');
+  const [routePath, setRoutePath] = useState(null);
 
   useEffect(() => {
     fetchShipments();
@@ -16,7 +18,7 @@ const ShipmentTracker = () => {
   const fetchShipments = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/shipments', {
+      const response = await api.get('/shipments', {
         params: {
           status: filter,
           limit: 20
@@ -27,6 +29,35 @@ const ShipmentTracker = () => {
       console.error('Error fetching shipments:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const optimizeRoute = async (shipmentId) => {
+    try {
+      const resData = await api.post(`/routes/shipment/${shipmentId}/optimize`, { criterion: 'COST' });
+      if (resData.data) {
+        setRoutePath(resData.data);
+      }
+    } catch (error) {
+      console.error('Error optimizing shipment route:', error);
+      alert('Error: ' + error.message);
+    }
+  };
+
+  const handleDynamicReroute = async (shipmentId, outOfStockWarehouseId, productId) => {
+    try {
+      const data = await api.post('/routes/reroute', {
+        shipmentId,
+        outOfStockWarehouseId,
+        productId
+      });
+      alert('Shipment successfully re-routed to alternative warehouse: ' + data.alternativeWarehouse.name);
+      fetchShipments();
+      setSelectedShipment(null);
+      setRoutePath(null);
+    } catch (error) {
+      console.error('Re-route failed:', error);
+      alert('Failed to re-route: ' + error.message);
     }
   };
 
@@ -60,12 +91,22 @@ const ShipmentTracker = () => {
     <div style={{ padding: '20px' }}>
       <h1 style={{ fontSize: '28px', marginBottom: '24px' }}>Live Shipment Tracking</h1>
 
+      {/* Route map visualization area at top of selection */}
+      {routePath && (
+        <div style={{ marginBottom: '25px' }}>
+          <RouteMap pathData={routePath} />
+        </div>
+      )}
+
       {/* Status Filters */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', overflowX: 'auto' }}>
         {['IN_TRANSIT', 'DELIVERED', 'OUT_FOR_DELIVERY', 'FAILED'].map(status => (
           <button
             key={status}
-            onClick={() => setFilter(status)}
+            onClick={() => {
+              setFilter(status);
+              setRoutePath(null);
+            }}
             style={{
               padding: '8px 16px',
               backgroundColor: filter === status ? 'var(--color-accent)' : 'var(--color-bg-secondary)',
@@ -97,7 +138,10 @@ const ShipmentTracker = () => {
             <div
               key={shipment._id}
               className="card"
-              onClick={() => setSelectedShipment(shipment)}
+              onClick={() => {
+                setSelectedShipment(shipment);
+                optimizeRoute(shipment._id);
+              }}
               style={{
                 cursor: 'pointer',
                 borderLeft: `4px solid ${getStatusColor(shipment.status)}`,
@@ -215,7 +259,10 @@ const ShipmentTracker = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <h3 style={{ fontSize: '16px', fontWeight: '600' }}>Shipment Details</h3>
             <button
-              onClick={() => setSelectedShipment(null)}
+              onClick={() => {
+                setSelectedShipment(null);
+                setRoutePath(null);
+              }}
               style={{
                 background: 'none',
                 border: 'none',
@@ -237,8 +284,29 @@ const ShipmentTracker = () => {
             <div>
               <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Route:</div>
               <div style={{ fontSize: '13px' }}>
-                {selectedShipment.originAddress?.city} → {selectedShipment.destinationAddress?.city}
+                {selectedShipment.originAddress?.city || 'Warehouse Depot'} → {selectedShipment.destinationAddress?.city}
               </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+              <button 
+                onClick={() => optimizeRoute(selectedShipment._id)}
+                style={{ flex: 1, padding: '8px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+              >
+                <Navigation size={12} /> Optimize Path
+              </button>
+              
+              {/* Dynamic Re-routing Button in case of inventory shortage */}
+              <button 
+                onClick={() => handleDynamicReroute(
+                  selectedShipment._id,
+                  selectedShipment.originAddress?._id || selectedShipment.originAddress,
+                  selectedShipment.items?.[0]?.product?._id || selectedShipment.items?.[0]?.product
+                )}
+                style={{ flex: 1, padding: '8px', fontSize: '12px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Stockout Re-route
+              </button>
             </div>
 
             {selectedShipment.route && selectedShipment.route.length > 0 && (
@@ -265,7 +333,7 @@ const ShipmentTracker = () => {
             {selectedShipment.cost && (
               <div>
                 <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Shipping Cost:</div>
-                <div style={{ fontSize: '14px', fontWeight: '600' }}>${selectedShipment.cost.total}</div>
+                <div style={{ fontSize: '14px', fontWeight: '600' }}>${selectedShipment.cost.total || selectedShipment.cost}</div>
               </div>
             )}
           </div>

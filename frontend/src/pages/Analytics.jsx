@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { InventoryContext } from '../context/InventoryContext';
 import { ShipmentTrackingChart, BatchExpiryChart, AlertSeverityChart, ForecastChart, InventoryTurnoverChart, DeadStockChart } from '../components/AdvancedCharts';
+import TopProductsChart from '../components/TopProductsChart';
+import StockHealthChart from '../components/StockHealthChart';
+import StockDistributionChart from '../components/StockDistributionChart';
+import SalesVsPurchasesChart from '../components/SalesVsPurchasesChart';
+import InventoryTrendChart from '../components/InventoryTrendChart';
 
 const Analytics = () => {
   const { api, products } = useContext(InventoryContext);
@@ -8,27 +13,50 @@ const Analytics = () => {
   const [batches, setBatches] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [forecasts, setForecasts] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState({});
 
+  const [skuMargins, setSkuMargins] = useState([]);
+  const [plSummary, setPlSummary] = useState([]);
+
   useEffect(() => {
     fetchAllData();
+    fetchFinanceData();
   }, []);
+
+  const fetchFinanceData = async () => {
+    try {
+      const [marginsData, plData] = await Promise.all([
+        api.get('/finance/sku-margins'),
+        api.get('/finance/pl-summary')
+      ]);
+      if (marginsData.data) setSkuMargins(marginsData.data);
+      if (plData.data) setPlSummary(plData.data);
+    } catch (error) {
+      console.error('Error fetching finance data:', error);
+    }
+  };
 
   const fetchAllData = async () => {
     try {
       setLoading(true);
-      const [shipmentsRes, batchesRes, alertsRes, forecastsRes] = await Promise.all([
-        api.get('/api/shipments?limit=100'),
-        api.get('/api/batches?limit=100'),
-        api.get('/api/alerts?limit=100'),
-        api.get('/api/forecasts?limit=50')
+      const [shipmentsRes, batchesRes, alertsRes, forecastsRes, ordersRes, warehousesRes] = await Promise.all([
+        api.get('/shipments?limit=100'),
+        api.get('/batches?limit=100'),
+        api.get('/alerts?limit=100'),
+        api.get('/forecasts?limit=50'),
+        api.get('/orders?limit=100'),
+        api.get('/warehouses?limit=100')
       ]);
 
       setShipments(shipmentsRes.data.shipments || []);
       setBatches(batchesRes.data || []);
       setAlerts(alertsRes.data.alerts || []);
       setForecasts(forecastsRes.data || []);
+      setOrders(ordersRes.data?.orders || ordersRes.orders || ordersRes.data || []);
+      setWarehouses(warehousesRes.data?.warehouses || warehousesRes.warehouses || warehousesRes.data || warehousesRes || []);
 
       // Calculate metrics
       calculateMetrics(shipmentsRes.data.shipments || [], batchesRes.data || [], alertsRes.data.alerts || []);
@@ -120,13 +148,85 @@ const Analytics = () => {
           Loading analytics...
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '20px' }}>
-          <ShipmentTrackingChart shipments={shipments} />
-          <BatchExpiryChart batches={batches} />
-          <AlertSeverityChart alerts={alerts} />
-          <ForecastChart forecasts={forecasts} />
-          <InventoryTurnoverChart products={products} />
-          <DeadStockChart products={products} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '20px' }}>
+            <ShipmentTrackingChart shipments={shipments} />
+            <BatchExpiryChart batches={batches} />
+            <AlertSeverityChart alerts={alerts} />
+            <ForecastChart forecasts={forecasts} />
+            <InventoryTurnoverChart products={products} />
+            <DeadStockChart products={products} />
+          </div>
+
+          {/* Extended Analytics Grid */}
+          <h2 style={{ fontSize: '24px', marginTop: '20px', marginBottom: '10px' }}>Extended Analytics</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '20px' }}>
+            <TopProductsChart products={products} orders={orders} />
+            <StockHealthChart products={products} warehouses={warehouses} />
+            <StockDistributionChart products={products} />
+            <SalesVsPurchasesChart orders={orders} />
+            <InventoryTrendChart products={products} orders={orders} />
+          </div>
+
+          {/* FIFO COGS Monthly P&L Table */}
+          <div style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '20px' }}>
+            <h3 style={{ margin: '0 0 15px 0' }}>FIFO Monthly P&L Ledger Summary</h3>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                  <th style={{ padding: '12px' }}>Month / Year</th>
+                  <th style={{ padding: '12px' }}>Orders Count</th>
+                  <th style={{ padding: '12px' }}>Total Revenue</th>
+                  <th style={{ padding: '12px' }}>Total COGS</th>
+                  <th style={{ padding: '12px' }}>Gross Profit</th>
+                  <th style={{ padding: '12px' }}>Margin %</th>
+                </tr>
+              </thead>
+              <tbody>
+                {plSummary.map(row => (
+                  <tr key={row.month} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                    <td style={{ padding: '12px', fontWeight: 'bold' }}>{row.month}</td>
+                    <td style={{ padding: '12px' }}>{row.ordersCount}</td>
+                    <td style={{ padding: '12px' }}>${row.revenue}</td>
+                    <td style={{ padding: '12px' }}>${row.cogs}</td>
+                    <td style={{ padding: '12px', color: '#10b981', fontWeight: 'bold' }}>${row.grossProfit}</td>
+                    <td style={{ padding: '12px', fontWeight: 'bold' }}>{row.marginPercentage}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* SKU Gross Margins Table */}
+          <div style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '20px' }}>
+            <h3 style={{ margin: '0 0 15px 0' }}>Gross Margin Per Product SKU (FIFO Based)</h3>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                  <th style={{ padding: '12px' }}>Product SKU</th>
+                  <th style={{ padding: '12px' }}>Product Name</th>
+                  <th style={{ padding: '12px' }}>Units Sold</th>
+                  <th style={{ padding: '12px' }}>Revenue</th>
+                  <th style={{ padding: '12px' }}>COGS</th>
+                  <th style={{ padding: '12px' }}>Gross Profit</th>
+                  <th style={{ padding: '12px' }}>Margin %</th>
+                </tr>
+              </thead>
+              <tbody>
+                {skuMargins.map(row => (
+                  <tr key={row.sku} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                    <td style={{ padding: '12px', fontWeight: 'bold' }}>{row.sku}</td>
+                    <td style={{ padding: '12px' }}>{row.name}</td>
+                    <td style={{ padding: '12px' }}>{row.salesQuantity}</td>
+                    <td style={{ padding: '12px' }}>${row.revenue}</td>
+                    <td style={{ padding: '12px' }}>${row.cogs}</td>
+                    <td style={{ padding: '12px', color: '#10b981', fontWeight: 'bold' }}>${row.grossProfit}</td>
+                    <td style={{ padding: '12px', fontWeight: 'bold' }}>{row.marginPercentage}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
