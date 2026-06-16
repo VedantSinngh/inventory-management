@@ -37,27 +37,52 @@ router.post(
 
     const { email, password } = req.body;
     
-    try {
-      const user = await User.findOne({ email });
+     try {
+       const user = await User.findOne({ email });
 
-       if (user && (await user.matchPassword(password))) {
-         // Update last login
-         user.lastLogin = new Date();
-         await user.save();
+       // Check if user exists
+       if (!user) {
+         return res.status(401).json({ message: 'Invalid email or password' });
+       }
 
-         res.json({
-           _id: user._id,
-           name: user.name || 'User',
-           email: user.email,
-           role: user.role,
-           token: generateToken(user._id)
+       // Check if password matches
+       const passwordMatch = await user.matchPassword(password);
+       if (!passwordMatch) {
+         return res.status(401).json({ message: 'Invalid email or password' });
+       }
+
+       // Check if email is verified
+       if (!user.isVerified) {
+         return res.status(403).json({ 
+           message: 'Your email is not verified. Please check your email for the verification link.',
+           code: 'EMAIL_NOT_VERIFIED',
+           email: user.email
          });
-      } else {
-        res.status(401).json({ message: 'Invalid email or password' });
-      }
-    } catch (error) {
-      res.status(500).json({ message: 'Server error', error: error.message });
-    }
+       }
+
+       // Check if account is active
+       if (user.status !== 'ACTIVE') {
+         return res.status(403).json({ 
+           message: `Your account status is ${user.status}. Please contact support if you believe this is an error.`,
+           code: 'ACCOUNT_NOT_ACTIVE',
+           status: user.status
+         });
+       }
+
+       // All checks passed - login successful
+       user.lastLogin = new Date();
+       await user.save();
+
+       res.json({
+         _id: user._id,
+         name: user.name || 'User',
+         email: user.email,
+         role: user.role,
+         token: generateToken(user._id)
+       });
+     } catch (error) {
+       res.status(500).json({ message: 'Server error', error: error.message });
+     }
   }
 );
 
@@ -107,27 +132,53 @@ router.post(
         status: 'PENDING'
       });
 
-      // Send verification email
-      const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      const verificationLink = `${baseUrl}/verify?token=${verificationToken}`;
-      await emailService.sendVerificationEmail(
-        newUser.email,
-        newUser.name,
-        verificationToken,
-        verificationLink
-      );
+       // Send verification email
+       const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+       const verificationLink = `${baseUrl}/verify?token=${verificationToken}`;
+       
+       try {
+         const emailResult = await emailService.sendVerificationEmail(
+           newUser.email,
+           newUser.name,
+           verificationToken,
+           verificationLink
+         );
 
-      res.status(201).json({
-        message: 'User registered successfully. Please check your email to verify your account.',
-        user: {
-          _id: newUser._id,
-          name: newUser.name,
-          email: newUser.email,
-          role: newUser.role
-        },
-        // Only in development - remove in production
-        ...(process.env.NODE_ENV === 'development' && { verificationLink })
-      });
+         // Check if email was successfully sent
+         if (!emailResult || !emailResult.success) {
+           // In production, email failure is critical
+           if (process.env.NODE_ENV === 'production') {
+             // Delete the user since we can't verify them
+             await User.findByIdAndDelete(newUser._id);
+             return res.status(500).json({ 
+               message: 'Failed to send verification email. Please try again later.',
+               error: emailResult?.error || 'Email service error'
+             });
+           }
+         }
+       } catch (emailError) {
+         console.error('Email service error:', emailError);
+         // In production, don't allow signup if email service fails
+         if (process.env.NODE_ENV === 'production') {
+           await User.findByIdAndDelete(newUser._id);
+           return res.status(500).json({ 
+             message: 'Failed to send verification email. Please try again later.',
+             error: emailError.message
+           });
+         }
+       }
+
+       res.status(201).json({
+         message: 'User registered successfully. Please check your email to verify your account.',
+         user: {
+           _id: newUser._id,
+           name: newUser.name,
+           email: newUser.email,
+           role: newUser.role
+         },
+         // Only in development - remove in production
+         ...(process.env.NODE_ENV === 'development' && { verificationLink })
+       });
     } catch (error) {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
@@ -225,31 +276,41 @@ router.post(
         return res.status(409).json({ message: 'User with this email already exists' });
       }
 
-      // Create new user (admin-created users are verified by default)
-      const newUser = await User.create({
-        name,
-        email,
-        password,
-        role: role || 'STAFF',
-        isVerified: true,
-        status: 'ACTIVE'
-      });
+       // Create new user (admin-created users are verified by default)
+       const newUser = await User.create({
+         name,
+         email,
+         password,
+         role: role || 'STAFF',
+         isVerified: true,
+         status: 'ACTIVE'
+       });
 
-      // Send welcome email
-      await emailService.sendWelcomeEmail(
-        newUser.email,
-        newUser.name,
-        newUser.role
-      );
+       // Send welcome email - but don't fail if email service fails
+       try {
+         const emailResult = await emailService.sendWelcomeEmail(
+           newUser.email,
+           newUser.name,
+           newUser.role
+         );
 
-      res.status(201).json({
-        _id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role,
-        message: `User created successfully as ${role || 'STAFF'}`,
-        token: generateToken(newUser._id)
-      });
+         if (!emailResult || !emailResult.success) {
+           console.warn(`Warning: Failed to send welcome email to ${newUser.email}`);
+           // Don't delete the user - admin-created users can still login even if email fails
+         }
+       } catch (emailError) {
+         console.error('Email service error for welcome email:', emailError);
+         // Don't fail registration - user is already created and verified
+       }
+
+       res.status(201).json({
+         _id: newUser._id,
+         name: newUser.name,
+         email: newUser.email,
+         role: newUser.role,
+         message: `User created successfully as ${role || 'STAFF'}`,
+         token: generateToken(newUser._id)
+       });
     } catch (error) {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
@@ -569,7 +630,9 @@ router.post('/setup', setupHandler);
 
 // Admin: Fix password hashing for users with plain text passwords
 // This endpoint directly hashes plain text passwords using bcryptjs
-router.post('/migrate-passwords', async (req, res) => {
+// Admin only: Fix password hashing for users with plain text passwords
+// Protected endpoint - admin authentication required
+router.post('/migrate-passwords', protect, authorize('ADMIN'), async (req, res) => {
   try {
     console.log('🔍 Starting password migration...');
     const bcryptjs = await import('bcryptjs');
@@ -595,7 +658,7 @@ router.post('/migrate-passwords', async (req, res) => {
       message: 'Password migration completed',
       updated,
       total: users.length,
-      note: 'This endpoint should be removed or protected after first use'
+      note: 'This endpoint is now admin-protected'
     });
   } catch (error) {
     console.error('Migration error:', error);
