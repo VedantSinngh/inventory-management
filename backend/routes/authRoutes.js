@@ -628,6 +628,53 @@ const setupHandler = async (req, res) => {
 router.get('/setup', setupHandler);
 router.post('/setup', setupHandler);
 
+// Public: Emergency endpoint to rehash all passwords
+// Use this ONLY to fix existing plain text passwords
+// WARNING: Remove this endpoint after first use in production
+router.post('/rehash-passwords', async (req, res) => {
+  try {
+    console.log('🔍 Starting emergency password rehashing...');
+    const bcryptjs = await import('bcryptjs');
+    const users = await User.find({});
+    
+    let updated = 0;
+    let skipped = 0;
+    
+    for (const user of users) {
+      // Check if password is already hashed (bcrypt hashes start with $2a$, $2b$, or $2x$)
+      const isHashed = user.password.startsWith('$2a$') || user.password.startsWith('$2b$') || user.password.startsWith('$2x$');
+      
+      if (!isHashed) {
+        console.log(`  Hashing password for: ${user.email}`);
+        try {
+          // Directly hash the password
+          const hashedPassword = await bcryptjs.hash(user.password, 10);
+          // Update directly in database to avoid double-hashing from the pre-save hook
+          await User.updateOne({ _id: user._id }, { password: hashedPassword });
+          updated++;
+        } catch (err) {
+          console.error(`  Error hashing ${user.email}:`, err.message);
+        }
+      } else {
+        console.log(`  ✓ ${user.email} - already hashed`);
+        skipped++;
+      }
+    }
+
+    console.log(`✅ Rehashing complete: ${updated} updated, ${skipped} already hashed`);
+    res.json({
+      message: 'Password rehashing completed',
+      updated,
+      skipped,
+      total: users.length,
+      warning: 'IMPORTANT: Delete or disable this endpoint immediately after use. It is a security risk.'
+    });
+  } catch (error) {
+    console.error('Rehashing error:', error);
+    res.status(500).json({ message: 'Rehashing error', error: error.message });
+  }
+});
+
 // Admin: Fix password hashing for users with plain text passwords
 // This endpoint directly hashes plain text passwords using bcryptjs
 // Admin only: Fix password hashing for users with plain text passwords
