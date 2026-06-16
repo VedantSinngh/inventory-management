@@ -10,6 +10,7 @@ const ShipmentTracker = () => {
   const [selectedShipment, setSelectedShipment] = useState(null);
   const [filter, setFilter] = useState('IN_TRANSIT');
   const [routePath, setRoutePath] = useState(null);
+  const [simulating, setSimulating] = useState(false);
 
   useEffect(() => {
     fetchShipments();
@@ -56,8 +57,23 @@ const ShipmentTracker = () => {
       setSelectedShipment(null);
       setRoutePath(null);
     } catch (error) {
-      console.error('Re-route failed:', error);
       alert('Failed to re-route: ' + error.message);
+    }
+  };
+
+  const toggleSimulation = async (shipmentId) => {
+    try {
+      if (simulating) {
+        await api.stopShipmentSimulation(shipmentId);
+        setSimulating(false);
+      } else {
+        await api.startShipmentSimulation(shipmentId);
+        setSimulating(true);
+        alert('Simulation started! The truck will now move automatically on the map.');
+      }
+    } catch (error) {
+      console.error('Simulation toggle failed:', error);
+      alert('Simulation error: ' + error.message);
     }
   };
 
@@ -308,6 +324,30 @@ const ShipmentTracker = () => {
                 Stockout Re-route
               </button>
             </div>
+
+            {selectedShipment.status === 'IN_TRANSIT' && (
+              <button 
+                onClick={() => toggleSimulation(selectedShipment._id)}
+                style={{ 
+                  width: '100%', 
+                  marginTop: '10px', 
+                  padding: '12px', 
+                  fontSize: '14px', 
+                  backgroundColor: simulating ? '#EF4444' : '#10B981', 
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: '4px', 
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                {simulating ? '🛑 Stop Simulation' : '🚀 Start Live Simulation'}
+              </button>
+            )}
 
             {selectedShipment.route && selectedShipment.route.length > 0 && (
               <div>

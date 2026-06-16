@@ -256,6 +256,14 @@ class APIService {
     return this.get(`/shipments/tracking/${trackingNumber}`);
   }
 
+  startShipmentSimulation(id) {
+    return this.post(`/shipments/${id}/simulate/start`);
+  }
+
+  stopShipmentSimulation(id) {
+    return this.post(`/shipments/${id}/simulate/stop`);
+  }
+
   // ========== ALERTS ==========
 
   getAlerts(page = 1, limit = 20, filters = {}) {

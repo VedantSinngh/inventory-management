@@ -5,6 +5,7 @@ import { protect } from '../middleware/auth.js';
 import MapService from '../services/mapService.js';
 import WeatherService from '../services/weatherService.js';
 import RouteOptimizationService from '../services/routeOptimizationService.js';
+import SimulatorService from '../services/simulatorService.js';
 
 const router = express.Router();
 
@@ -331,6 +332,31 @@ router.get('/:id/tracking-url', protect, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Error generating tracking URL', error: error.message });
+  }
+});
+
+// Start Simulation
+router.post('/:id/simulate/start', protect, async (req, res) => {
+  try {
+    const io = req.app.get('io');
+    await SimulatorService.startSimulation(req.params.id, io);
+    res.json({ message: 'Simulation started' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error starting simulation', error: error.message });
+  }
+});
+
+// Stop Simulation
+router.post('/:id/simulate/stop', protect, async (req, res) => {
+  try {
+    const stopped = SimulatorService.stopSimulation(req.params.id);
+    if (stopped) {
+      res.json({ message: 'Simulation stopped' });
+    } else {
+      res.status(400).json({ message: 'No active simulation for this shipment' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Error stopping simulation', error: error.message });
   }
 });
 
