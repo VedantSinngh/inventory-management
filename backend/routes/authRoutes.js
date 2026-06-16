@@ -51,13 +51,19 @@ router.post(
          return res.status(401).json({ message: 'Invalid email or password' });
        }
 
-       // Check if account is active
-       if (user.status !== 'ACTIVE') {
+       // Check if account is INACTIVE (banned/disabled)
+       if (user.status === 'INACTIVE') {
          return res.status(403).json({ 
-           message: `Your account status is ${user.status}. Please contact support if you believe this is an error.`,
+           message: `Your account status is INACTIVE. Please contact support if you believe this is an error.`,
            code: 'ACCOUNT_NOT_ACTIVE',
            status: user.status
          });
+       }
+
+       // Automatically upgrade PENDING users to ACTIVE since email verification is removed
+       if (user.status === 'PENDING') {
+         user.status = 'ACTIVE';
+         user.isVerified = true;
        }
 
        // All checks passed - login successful
