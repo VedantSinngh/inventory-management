@@ -51,15 +51,6 @@ router.post(
          return res.status(401).json({ message: 'Invalid email or password' });
        }
 
-       // Check if email is verified
-       if (!user.isVerified) {
-         return res.status(403).json({ 
-           message: 'Your email is not verified. Please check your email for the verification link.',
-           code: 'EMAIL_NOT_VERIFIED',
-           email: user.email
-         });
-       }
-
        // Check if account is active
        if (user.status !== 'ACTIVE') {
          return res.status(403).json({ 
@@ -116,68 +107,24 @@ router.post(
         return res.status(409).json({ message: 'User with this email already exists' });
       }
 
-      // Generate verification token
-      const verificationToken = crypto.randomBytes(32).toString('hex');
-      const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-      // Create new user with STAFF role by default
+      // Create new user with STAFF role by default and active status
       const newUser = await User.create({
         name,
         email,
         password,
         role: 'STAFF',
-        isVerified: false,
-        verificationToken,
-        verificationTokenExpires,
-        status: 'PENDING'
+        isVerified: true,
+        status: 'ACTIVE'
       });
 
-       // Send verification email
-       const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-       const verificationLink = `${baseUrl}/verify?token=${verificationToken}`;
-       
-       try {
-         const emailResult = await emailService.sendVerificationEmail(
-           newUser.email,
-           newUser.name,
-           verificationToken,
-           verificationLink
-         );
-
-         // Check if email was successfully sent
-         if (!emailResult || !emailResult.success) {
-           // In production, email failure is critical
-           if (process.env.NODE_ENV === 'production') {
-             // Delete the user since we can't verify them
-             await User.findByIdAndDelete(newUser._id);
-             return res.status(500).json({ 
-               message: 'Failed to send verification email. Please try again later.',
-               error: emailResult?.error || 'Email service error'
-             });
-           }
-         }
-       } catch (emailError) {
-         console.error('Email service error:', emailError);
-         // In production, don't allow signup if email service fails
-         if (process.env.NODE_ENV === 'production') {
-           await User.findByIdAndDelete(newUser._id);
-           return res.status(500).json({ 
-             message: 'Failed to send verification email. Please try again later.',
-             error: emailError.message
-           });
-         }
-       }
-
        res.status(201).json({
-         message: 'User registered successfully. Please check your email to verify your account.',
+         message: 'User registered successfully. You can now login.',
          user: {
            _id: newUser._id,
            name: newUser.name,
            email: newUser.email,
            role: newUser.role
-         },
-         // Only in development - remove in production
-         ...(process.env.NODE_ENV === 'development' && { verificationLink })
+         }
        });
     } catch (error) {
       res.status(500).json({ message: 'Server error', error: error.message });
@@ -714,4 +661,3 @@ router.post('/migrate-passwords', protect, authorize('ADMIN'), async (req, res) 
 });
 
 export default router;
-

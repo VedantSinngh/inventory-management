@@ -54,9 +54,8 @@ const Signup = () => {
         password: formData.password
       });
 
-      success('Account created! Check your email to verify your account.');
-      setStep('verify');
-      setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
+      success('Account created successfully! Redirecting to login...');
+      setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
       showError(err.data?.message || err.message || 'Signup failed');
     } finally {
