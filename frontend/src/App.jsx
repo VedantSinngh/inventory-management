@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
@@ -230,9 +230,9 @@ const Topbar = () => {
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '8px', borderLeft: '1px solid var(--color-border)' }}>
-          <div style={{ fontSize: '12px', color: 'var(--color-text-primary)', fontWeight: '500' }}>{user ? user.name : 'ADMIN'}</div>
+          <div style={{ fontSize: '12px', color: 'var(--color-text-primary)', fontWeight: '500' }}>{user?.name || 'User'}</div>
           <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: 'var(--color-accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '600' }}>
-            {user ? user.name.slice(0,2).toUpperCase() : 'AD'}
+            {user?.name ? user.name.slice(0,2).toUpperCase() : 'US'}
           </div>
           <button onClick={logout} style={{ display: 'flex', background: 'none', border: 'none', padding: 0, cursor: 'pointer', outline: 'none' }}>
             <LogOut size={16} style={{ color: 'var(--color-text-secondary)' }} />

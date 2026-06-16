@@ -22,6 +22,10 @@ export const AuthProvider = ({ children }) => {
       if (userInfo && token) {
         try {
           const userData = JSON.parse(userInfo);
+          // Ensure name exists, fallback to 'User' if not
+          if (!userData.name) {
+            userData.name = 'User';
+          }
           setUser(userData);
           console.log('AuthContext: User restored from session:', userData.email);
         } catch (parseError) {
@@ -64,12 +68,16 @@ export const AuthProvider = ({ children }) => {
       console.log('AuthContext: Login response status:', response.status);
       
       if (response.ok) {
-        console.log('AuthContext: Login successful, storing user and token');
-        setUser(data);
-        sessionStorage.setItem('userInfo', JSON.stringify(data));
-        sessionStorage.setItem('token', data.token);
-        navigate('/');
-        return { success: true };
+         console.log('AuthContext: Login successful, storing user and token');
+         // Ensure data has a name field
+         if (!data.name) {
+           data.name = 'User';
+         }
+         setUser(data);
+         sessionStorage.setItem('userInfo', JSON.stringify(data));
+         sessionStorage.setItem('token', data.token);
+         navigate('/');
+         return { success: true };
       } else {
         const errorMsg = data.message || 'Login failed';
         console.error('AuthContext: Login failed:', errorMsg);

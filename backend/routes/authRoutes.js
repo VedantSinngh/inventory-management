@@ -40,18 +40,18 @@ router.post(
     try {
       const user = await User.findOne({ email });
 
-      if (user && (await user.matchPassword(password))) {
-        // Update last login
-        user.lastLogin = new Date();
-        await user.save();
+       if (user && (await user.matchPassword(password))) {
+         // Update last login
+         user.lastLogin = new Date();
+         await user.save();
 
-        res.json({
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          token: generateToken(user._id)
-        });
+         res.json({
+           _id: user._id,
+           name: user.name || 'User',
+           email: user.email,
+           role: user.role,
+           token: generateToken(user._id)
+         });
       } else {
         res.status(401).json({ message: 'Invalid email or password' });
       }
