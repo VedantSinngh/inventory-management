@@ -421,6 +421,12 @@ class APIService {
     return this.get('/analytics/reorder-suggestions');
   }
 
+  // ========== IMPORT DATA ==========
+
+  importCsv(data, wipeDatabase = true) {
+    return this.post('/import', { data, wipeDatabase });
+  }
+
   // ========== HEALTH ==========
 
   checkHealth() {

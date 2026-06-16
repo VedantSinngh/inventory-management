@@ -25,6 +25,7 @@ import llmAlertRoutes from './routes/llmAlertRoutes.js';
 import returnRoutes from './routes/returnRoutes.js';
 import financeRoutes from './routes/financeRoutes.js';
 import inventoryRoutes from './routes/inventoryRoutes.js';
+import importRoutes from './routes/importRoutes.js';
 import { startExchangeRateCron } from './services/currencyCronService.js';
 import Product from './models/Product.js';
 import Order from './models/Order.js';
@@ -101,6 +102,7 @@ app.use('/api/llm-alerts', llmAlertRoutes);
 app.use('/api/returns', returnRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/import', importRoutes);
 
 // Analytics endpoint
 app.get('/api/analytics/reorder-suggestions', protect, async (req, res) => {

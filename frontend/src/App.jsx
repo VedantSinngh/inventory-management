@@ -250,49 +250,7 @@ const TopNav = () => {
   );
 };
 
-const Footer = () => (
-  <footer style={{ backgroundColor: 'var(--color-canvas)', padding: '64px 24px', borderTop: '1px solid var(--color-hairline)', marginTop: 'auto' }}>
-    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '40px' }}>
-      <div>
-        <div style={{ marginBottom: '24px', width: '32px' }}><MStripe /></div>
-        <div style={{ fontSize: '14px', fontWeight: '700', letterSpacing: '1.5px', color: 'var(--color-on-dark)', textTransform: 'uppercase', marginBottom: '16px' }}>SYSTEM.M MODELS</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <Link to="/products" style={{ color: 'var(--color-muted)', fontSize: '14px' }}>All Products</Link>
-          <Link to="/warehouses" style={{ color: 'var(--color-muted)', fontSize: '14px' }}>Warehouses</Link>
-          <Link to="/suppliers" style={{ color: 'var(--color-muted)', fontSize: '14px' }}>Suppliers</Link>
-        </div>
-      </div>
-      <div>
-        <div style={{ fontSize: '14px', fontWeight: '700', letterSpacing: '1.5px', color: 'var(--color-on-dark)', textTransform: 'uppercase', marginBottom: '16px', marginTop: '28px' }}>OPERATIONS</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <Link to="/orders" style={{ color: 'var(--color-muted)', fontSize: '14px' }}>Orders</Link>
-          <Link to="/shipments" style={{ color: 'var(--color-muted)', fontSize: '14px' }}>Shipments</Link>
-          <Link to="/batches" style={{ color: 'var(--color-muted)', fontSize: '14px' }}>Batches</Link>
-        </div>
-      </div>
-      <div>
-        <div style={{ fontSize: '14px', fontWeight: '700', letterSpacing: '1.5px', color: 'var(--color-on-dark)', textTransform: 'uppercase', marginBottom: '16px', marginTop: '28px' }}>INTELLIGENCE</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <Link to="/analytics" style={{ color: 'var(--color-muted)', fontSize: '14px' }}>Analytics</Link>
-          <Link to="/alerts" style={{ color: 'var(--color-muted)', fontSize: '14px' }}>Alerts</Link>
-          <Link to="/reorders" style={{ color: 'var(--color-muted)', fontSize: '14px' }}>Reorder Engine</Link>
-        </div>
-      </div>
-      <div>
-        <div style={{ fontSize: '14px', fontWeight: '700', letterSpacing: '1.5px', color: 'var(--color-on-dark)', textTransform: 'uppercase', marginBottom: '16px', marginTop: '28px' }}>LEGAL</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <span style={{ color: 'var(--color-muted)', fontSize: '14px', cursor: 'pointer' }}>Imprint</span>
-          <span style={{ color: 'var(--color-muted)', fontSize: '14px', cursor: 'pointer' }}>Cookies</span>
-          <span style={{ color: 'var(--color-muted)', fontSize: '14px', cursor: 'pointer' }}>Privacy Policy</span>
-        </div>
-      </div>
-    </div>
-    <div style={{ maxWidth: '1440px', margin: '64px auto 0', paddingTop: '24px', borderTop: '1px solid var(--color-hairline)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <div className="caption" style={{ color: 'var(--color-muted)' }}>© {new Date().getFullYear()} SYSTEM.M INVENTORY</div>
-      <div className="caption" style={{ color: 'var(--color-muted)' }}>EN</div>
-    </div>
-  </footer>
-);
+// Footer removed for minimalist design
 
 const Layout = ({ children }) => {
   return (
@@ -303,13 +261,12 @@ const Layout = ({ children }) => {
         width: '100%',
         maxWidth: '1440px',
         margin: '0 auto',
-        padding: 'var(--spacing-xxl) var(--spacing-lg)',
+        padding: 'var(--spacing-xl) var(--spacing-lg)',
         display: 'flex',
         flexDirection: 'column'
       }}>
          {children}
       </div>
-      <Footer />
     </div>
   );
 };

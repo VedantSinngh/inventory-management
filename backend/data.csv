@@ -1,0 +1,11 @@
+ProductName,SKU,Category,Price,Cost,Stock,SupplierName,WarehouseName,BatchQuantity,OrderQuantity,ShipmentStatus,AlertMessage,ForecastDemand
+M Performance Carbon Front Splitter,BMW-CF-FS-01,Exterior,1200,800,24,BMW M GmbH,Munich Hub,24,5,DELIVERED,,30
+M Carbon Ceramic Brakes,BMW-CB-02,Performance,8500,6000,8,Brembo,Dingolfing Plant,8,2,IN_TRANSIT,,12
+S58 Twin-Turbo Engine Block,BMW-S58-03,Powertrain,15000,10000,3,BMW Steyr,Munich Hub,3,1,PENDING,Critical low stock,5
+M Alcantara Steering Wheel,BMW-SW-04,Interior,950,550,45,ZF Friedrichshafen,Dingolfing Plant,45,15,DELIVERED,,60
+M Forged Alloy Wheel 826M,BMW-AW-05,Exterior,1100,700,60,BBS,Spartanburg Hub,60,20,DELIVERED,,80
+M Performance Titanium Exhaust,BMW-TE-06,Performance,4500,3000,12,Akrapovic,Spartanburg Hub,12,4,IN_TRANSIT,,15
+Carbon Fiber Mirror Caps,BMW-CF-MC-07,Exterior,800,400,35,BMW M GmbH,Munich Hub,35,10,DELIVERED,,40
+M Sport Differential Fluid,BMW-DF-08,Fluids,120,60,150,Castrol,Dingolfing Plant,150,30,DELIVERED,,200
+M Performance Suspension Kit,BMW-SK-09,Performance,2800,1800,18,KW Suspensions,Spartanburg Hub,18,6,IN_TRANSIT,,25
+Carbon Bucket Seats (Pair),BMW-CS-10,Interior,9000,6500,0,Recaro,Munich Hub,0,0,,,Supplier delay - out of stock,10

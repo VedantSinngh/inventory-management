@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { InventoryContext } from '../context/InventoryContext';
-import { Download, AlertCircle, TrendingUp, Package, Truck, AlertTriangle, Clock, Zap } from 'lucide-react';
+import { Download, AlertCircle, TrendingUp, Package, Truck, AlertTriangle, Clock, Zap, Upload } from 'lucide-react';
 import SimpleInventoryChart from '../components/SimpleInventoryChart';
 import SimpleCategoryBreakdown from '../components/SimpleCategoryBreakdown';
 import SimpleSalesOverview from '../components/SimpleSalesOverview';
@@ -26,6 +26,7 @@ const Dashboard = () => {
     forecasts: { total: 0, approved: 0 }
   });
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     fetchAdvancedMetrics();
@@ -69,6 +70,48 @@ const Dashboard = () => {
     currentStock: p.stock,
     suggestedReorder: Math.max((p.lowStockThreshold || 10) * 2 - p.stock, 1),
   }));
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target.result;
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+        if (lines.length < 2) throw new Error("CSV must have a header and at least one data row");
+        
+        const headers = lines[0].split(',');
+        const data = lines.slice(1).map(line => {
+          const values = line.split(',');
+          const obj = {};
+          headers.forEach((header, index) => {
+            obj[header.trim()] = values[index] ? values[index].trim() : '';
+          });
+          return obj;
+        });
+
+        const confirmWipe = window.confirm("WARNING: This will wipe your existing database to import the new data. Continue?");
+        if (!confirmWipe) {
+          setImporting(false);
+          return;
+        }
+
+        await api.importCsv(data, true);
+        alert('Import successful! Reloading dashboard...');
+        window.location.reload();
+      } catch (error) {
+        console.error("Import error", error);
+        alert("Failed to import: " + error.message);
+        setImporting(false);
+      }
+    };
+    reader.readAsText(file);
+    // reset input
+    e.target.value = null;
+  };
 
   const StatCard = ({ title, value, icon: Icon, color, delta }) => (
     <div className="card" style={{ flex: 1, minWidth: '200px', padding: '20px' }}>
@@ -185,6 +228,21 @@ const Dashboard = () => {
 
       {/* Quick Actions */}
       <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '24px', marginBottom: '24px' }}>
+        <button
+          onClick={() => document.getElementById('csvUpload').click()}
+          className="btn-ghost"
+          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          disabled={importing}
+        >
+          <Upload size={16} /> {importing ? 'IMPORTING...' : 'IMPORT DATA'}
+        </button>
+        <input 
+          type="file" 
+          id="csvUpload" 
+          accept=".csv" 
+          style={{ display: 'none' }} 
+          onChange={handleFileUpload} 
+        />
         <button
           onClick={() => exportCSV(products, 'inventory_export.csv')}
           className="btn-ghost"
