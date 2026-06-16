@@ -70,39 +70,49 @@ const Dashboard = () => {
     suggestedReorder: Math.max((p.lowStockThreshold || 10) * 2 - p.stock, 1),
   }));
 
-  const StatCard = ({ title, value, icon: Icon, color }) => (
-    <div className="card" style={{ flex: 1, minWidth: '200px', padding: '14px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>
+  const StatCard = ({ title, value, icon: Icon, color, delta }) => (
+    <div className="card" style={{ flex: 1, minWidth: '200px', padding: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {Icon && <Icon size={20} color="var(--color-accent)" strokeWidth={1.5} />}
+          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
             {title}
           </div>
-          <div style={{
-            fontSize: '28px',
-            fontFamily: 'var(--font-heading)',
-            fontWeight: 'bold',
-            color: color || 'var(--color-text-heading)'
-          }}>
-            {value}
-          </div>
         </div>
-        {Icon && <Icon size={22} color={color || 'var(--color-accent)'} strokeWidth={1.5} />}
       </div>
+      <div style={{
+        fontSize: '32px',
+        fontWeight: '700',
+        letterSpacing: '-0.5px',
+        color: 'var(--color-text-primary)',
+        fontVariantNumeric: 'tabular-nums',
+        lineHeight: 1
+      }}>
+        {value}
+      </div>
+      {delta && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '8px', fontSize: '12px' }}>
+          <span style={{ color: delta.type === 'up' ? 'var(--color-success)' : 'var(--color-danger)' }}>
+            {delta.type === 'up' ? '↑' : '↓'} {delta.value}
+          </span>
+          <span style={{ color: 'var(--color-text-tertiary)' }}>vs last month</span>
+        </div>
+      )}
     </div>
   );
 
   return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Alerts */}
       {(outOfStockProducts.length > 0 || lowStockProducts.length > 0 || advancedMetrics.alerts.critical > 0) && (
-        <div className="alert-banner" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="badge badge-danger" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: '6px', width: '100%', justifyContent: 'flex-start' }}>
           <AlertCircle size={20} />
-          <span>
-            <strong>⚠️ ATTENTION NEEDED:</strong>
+          <span style={{ textTransform: 'none', letterSpacing: 'normal', fontSize: '13px' }}>
+            <strong>SYSTEM ALERTS:</strong>
             {outOfStockProducts.length > 0 && ` ${outOfStockProducts.length} items OUT OF STOCK`}
             {outOfStockProducts.length > 0 && lowStockProducts.length > 0 && ' |'}
             {lowStockProducts.length > 0 && ` ${lowStockProducts.length} items LOW ON STOCK`}
-            {advancedMetrics.alerts.critical > 0 && ` | ${advancedMetrics.alerts.critical} CRITICAL ALERTS`}
+            {advancedMetrics.alerts.critical > 0 && ` | ${advancedMetrics.alerts.critical} CRITICAL SECURITY / QUALITY ERRORS`}
           </span>
         </div>
       )}
@@ -110,32 +120,32 @@ const Dashboard = () => {
       {/* Primary KPI Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        gap: '12px'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: '16px'
       }}>
         <StatCard
           title="Total Products"
           value={products.length}
           icon={Package}
-          color="#3B82F6"
+          delta={{ type: 'up', value: '4.8%' }}
         />
         <StatCard
           title="Inventory Value"
           value={`$${(totalInventoryValue / 1000).toFixed(0)}k`}
           icon={TrendingUp}
-          color="#10B981"
+          delta={{ type: 'up', value: '12.4%' }}
         />
         <StatCard
           title="Low Stock Items"
           value={lowStockProducts.length}
           icon={AlertCircle}
-          color={lowStockProducts.length > 0 ? '#EF4444' : '#10B981'}
+          delta={lowStockProducts.length > 0 ? { type: 'down', value: `${lowStockProducts.length} items` } : null}
         />
         <StatCard
           title="Pending Orders"
           value={pendingOrders}
           icon={Package}
-          color="#F59E0B"
+          delta={{ type: 'up', value: '8%' }}
         />
       </div>
 

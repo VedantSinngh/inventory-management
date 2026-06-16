@@ -1,6 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+const chartColors = ['#6366f1', '#22c55e', '#f59e0b', '#38bdf8', '#ef4444'];
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div style={{
+        backgroundColor: 'var(--color-surface-2)',
+        border: '1px solid var(--color-border)',
+        borderRadius: '6px',
+        padding: '10px 14px',
+        fontSize: '12px'
+      }}>
+        {label && <p style={{ margin: '0 0 6px 0', fontWeight: '600', color: 'var(--color-text-primary)' }}>{label}</p>}
+        {payload.map((p, idx) => (
+          <p key={idx} style={{ margin: '4px 0', color: p.color || 'var(--color-accent)' }}>
+            {p.name}: <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{p.value}</strong>
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
 const ShipmentTrackingChart = ({ shipments = [] }) => {
   const data = shipments.reduce((acc, ship) => {
     const status = ship.status || 'PENDING';
@@ -14,35 +38,34 @@ const ShipmentTrackingChart = ({ shipments = [] }) => {
   }, []);
 
   const colors = {
-    'PREPARING': '#F59E0B',
-    'READY_FOR_PICKUP': '#3B82F6',
-    'IN_TRANSIT': '#8B5CF6',
-    'OUT_FOR_DELIVERY': '#EC4899',
-    'DELIVERED': '#10B981',
-    'FAILED': '#EF4444',
-    'RETURNED': '#6B7280'
+    'PREPARING': '#f59e0b',
+    'READY_FOR_PICKUP': '#38bdf8',
+    'IN_TRANSIT': '#6366f1',
+    'OUT_FOR_DELIVERY': '#38bdf8',
+    'DELIVERED': '#22c55e',
+    'FAILED': '#ef4444',
+    'RETURNED': '#4a4a6a'
   };
 
   return (
-    <div className="card" style={{ marginBottom: '20px' }}>
-      <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>Shipment Status Distribution</h3>
-      <ResponsiveContainer width="100%" height={300}>
+    <div className="card">
+      <h3 style={{ fontSize: '15px', fontWeight: '500', marginBottom: '16px' }}>Shipment Status Distribution</h3>
+      <ResponsiveContainer width="100%" height={260}>
         <PieChart>
           <Pie
             data={data}
             cx="50%"
             cy="50%"
             labelLine={false}
-            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+            label={({ name, percent }) => `${name.replace(/_/g, ' ')}: ${(percent * 100).toFixed(0)}%`}
             outerRadius={80}
-            fill="#8884d8"
             dataKey="value"
           >
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={colors[entry.name] || '#6366F1'} />
             ))}
           </Pie>
-          <Tooltip />
+          <Tooltip content={<CustomTooltip />} />
         </PieChart>
       </ResponsiveContainer>
     </div>
@@ -70,18 +93,26 @@ const BatchExpiryChart = ({ batches = [] }) => {
     return acc;
   }, []);
 
-  const colors = ['#EF4444', '#F59E0B', '#FBBF24', '#10B981', '#3B82F6'];
+  const getBarColor = (name) => {
+    if (name === 'Expired') return '#ef4444';
+    if (name === '0-7 Days') return '#f59e0b';
+    return '#6366f1';
+  };
 
   return (
-    <div className="card" style={{ marginBottom: '20px' }}>
-      <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>Batch Expiry Status</h3>
-      <ResponsiveContainer width="100%" height={300}>
+    <div className="card">
+      <h3 style={{ fontSize: '15px', fontWeight: '500', marginBottom: '16px' }}>Batch Expiry Status</h3>
+      <ResponsiveContainer width="100%" height={260}>
         <BarChart data={expiryData}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" />
-          <YAxis />
-          <Tooltip />
-          <Bar dataKey="value" fill="#3B82F6" radius={[8, 8, 0, 0]} />
+          <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="name" stroke="var(--color-text-secondary)" tick={{ fontSize: 11 }} />
+          <YAxis stroke="var(--color-text-secondary)" tick={{ fontSize: 11 }} />
+          <Tooltip content={<CustomTooltip />} />
+          <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+            {expiryData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={getBarColor(entry.name)} />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -100,23 +131,26 @@ const AlertSeverityChart = ({ alerts = [] }) => {
     return acc;
   }, []);
 
-  const colors = {
-    'CRITICAL': '#DC2626',
-    'HIGH': '#EF4444',
-    'MEDIUM': '#F59E0B',
-    'LOW': '#FBBF24'
+  const getSeverityColor = (name) => {
+    if (name === 'CRITICAL' || name === 'HIGH') return '#ef4444';
+    if (name === 'MEDIUM') return '#f59e0b';
+    return '#38bdf8';
   };
 
   return (
-    <div className="card" style={{ marginBottom: '20px' }}>
-      <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>Alert Severity Distribution</h3>
-      <ResponsiveContainer width="100%" height={300}>
+    <div className="card">
+      <h3 style={{ fontSize: '15px', fontWeight: '500', marginBottom: '16px' }}>Alert Severity Distribution</h3>
+      <ResponsiveContainer width="100%" height={260}>
         <BarChart data={data} layout="vertical">
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis type="number" />
-          <YAxis dataKey="name" type="category" />
-          <Tooltip />
-          <Bar dataKey="value" fill="#3B82F6" radius={[0, 8, 8, 0]} />
+          <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" horizontal={false} />
+          <XAxis type="number" stroke="var(--color-text-secondary)" tick={{ fontSize: 11 }} />
+          <YAxis dataKey="name" type="category" stroke="var(--color-text-secondary)" tick={{ fontSize: 11 }} />
+          <Tooltip content={<CustomTooltip />} />
+          <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={getSeverityColor(entry.name)} />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -132,18 +166,18 @@ const ForecastChart = ({ forecasts = [] }) => {
   }));
 
   return (
-    <div className="card" style={{ marginBottom: '20px' }}>
-      <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>Demand Forecast</h3>
-      <ResponsiveContainer width="100%" height={300}>
+    <div className="card">
+      <h3 style={{ fontSize: '15px', fontWeight: '500', marginBottom: '16px' }}>Demand Forecast</h3>
+      <ResponsiveContainer width="100%" height={260}>
         <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="period" />
-          <YAxis />
-          <Tooltip />
-          <Legend />
-          <Line type="monotone" dataKey="lower" stroke="#9CA3AF" strokeDasharray="5 5" name="Confidence Lower" />
-          <Line type="monotone" dataKey="predicted" stroke="#3B82F6" strokeWidth={2} name="Predicted" />
-          <Line type="monotone" dataKey="upper" stroke="#9CA3AF" strokeDasharray="5 5" name="Confidence Upper" />
+          <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
+          <XAxis dataKey="period" stroke="var(--color-text-secondary)" tick={{ fontSize: 11 }} />
+          <YAxis stroke="var(--color-text-secondary)" tick={{ fontSize: 11 }} />
+          <Tooltip content={<CustomTooltip />} />
+          <Legend wrapperStyle={{ fontSize: 11 }} />
+          <Line type="monotone" dataKey="lower" stroke="#4a4a6a" strokeDasharray="5 5" name="Confidence Lower" dot={false} />
+          <Line type="monotone" dataKey="predicted" stroke="#6366f1" strokeWidth={2} name="Predicted" dot={{ r: 4 }} />
+          <Line type="monotone" dataKey="upper" stroke="#4a4a6a" strokeDasharray="5 5" name="Confidence Upper" dot={false} />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -162,16 +196,15 @@ const InventoryTurnoverChart = ({ products = [] }) => {
     }));
 
   return (
-    <div className="card" style={{ marginBottom: '20px' }}>
-      <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>Top 10 Products by Turnover</h3>
-      <ResponsiveContainer width="100%" height={300}>
+    <div className="card">
+      <h3 style={{ fontSize: '15px', fontWeight: '500', marginBottom: '16px' }}>Top 10 Products by Turnover</h3>
+      <ResponsiveContainer width="100%" height={260}>
         <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-          <YAxis />
-          <Tooltip />
-          <Legend />
-          <Bar dataKey="turnover" fill="#10B981" name="Annual Turnover" />
+          <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="name" angle={-45} textAnchor="end" height={60} stroke="var(--color-text-secondary)" tick={{ fontSize: 10 }} />
+          <YAxis stroke="var(--color-text-secondary)" tick={{ fontSize: 11 }} />
+          <Tooltip content={<CustomTooltip />} />
+          <Bar dataKey="turnover" fill="#6366f1" radius={[4, 4, 0, 0]} name="Annual Turnover" />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -191,14 +224,14 @@ const DeadStockChart = ({ products = [] }) => {
     return acc;
   }, []);
 
-  const colors = { 'A': '#10B981', 'B': '#3B82F6', 'C': '#F59E0B' };
+  const colors = { 'A': '#22c55e', 'B': '#6366f1', 'C': '#f59e0b' };
 
   return (
-    <div className="card" style={{ marginBottom: '20px' }}>
-      <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>
+    <div className="card">
+      <h3 style={{ fontSize: '15px', fontWeight: '500', marginBottom: '16px' }}>
         Inventory Classification (Dead Stock: {deadStockCount})
       </h3>
-      <ResponsiveContainer width="100%" height={300}>
+      <ResponsiveContainer width="100%" height={260}>
         <PieChart>
           <Pie
             data={abcData}
@@ -207,14 +240,13 @@ const DeadStockChart = ({ products = [] }) => {
             labelLine={false}
             label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
             outerRadius={80}
-            fill="#8884d8"
             dataKey="value"
           >
             {abcData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={colors[entry.name] || '#6366F1'} />
             ))}
           </Pie>
-          <Tooltip />
+          <Tooltip content={<CustomTooltip />} />
         </PieChart>
       </ResponsiveContainer>
     </div>

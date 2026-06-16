@@ -177,120 +177,85 @@ const Alerts = () => {
       {/* Alerts List */}
       {!loading && alerts.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {alerts.map(alert => (
-            <div
-              key={alert._id}
-              style={{
-                padding: '16px',
-                border: `2px solid ${getSeverityColor(alert.severity)}`,
-                backgroundColor: getSeverityBgColor(alert.severity),
-                borderRadius: '8px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                transition: 'all 200ms ease'
-              }}
-            >
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                  {getStatusIcon(alert.status)}
-                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>{alert.title}</h3>
-                  <span style={{
-                    padding: '4px 8px',
-                    backgroundColor: getSeverityColor(alert.severity),
-                    color: 'white',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    fontWeight: '500'
-                  }}>
-                    {alert.severity}
-                  </span>
-                </div>
+          {alerts.map(alert => {
+            const isCritical = alert.severity === 'CRITICAL' || alert.severity === 'HIGH';
+            const isUnread = alert.status === 'ACTIVE';
+            return (
+              <div
+                key={alert._id}
+                style={{
+                  padding: '16px 20px',
+                  border: '1px solid var(--color-border)',
+                  borderLeft: `4px solid ${getSeverityColor(alert.severity)}`,
+                  backgroundColor: isUnread ? 'var(--color-surface-2)' : 'var(--color-surface-1)',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  transition: 'all 150ms ease'
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+                    {getStatusIcon(alert.status)}
+                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '600', color: 'var(--color-text-primary)' }}>{alert.title}</h3>
+                    <span className={`badge ${
+                      alert.severity === 'CRITICAL' ? 'badge-danger' : 
+                      alert.severity === 'HIGH' ? 'badge-danger' : 
+                      alert.severity === 'MEDIUM' ? 'badge-warning' : 'badge-success'
+                    }`}>
+                      {alert.severity}
+                    </span>
+                  </div>
 
-                <p style={{ margin: '0 0 8px 30px', fontSize: '14px', color: 'var(--color-text-secondary)' }}>
-                  {alert.message}
-                </p>
-
-                {alert.description && (
-                  <p style={{ margin: '0 0 12px 30px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                    {alert.description}
+                  <p style={{ margin: '4px 0 8px 30px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                    {alert.message}
                   </p>
-                )}
 
-                <div style={{ display: 'flex', gap: '24px', marginLeft: '30px', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                  <span>Type: {alert.type}</span>
-                  <span>Status: {alert.status}</span>
-                  <span>Created: {new Date(alert.createdAt).toLocaleDateString()}</span>
+                  <div style={{ display: 'flex', gap: '24px', marginLeft: '30px', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
+                    <span>Type: {alert.type}</span>
+                    <span>Created: {new Date(alert.createdAt).toLocaleDateString()}</span>
+                  </div>
                 </div>
-              </div>
 
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: '8px', marginLeft: '16px' }}>
-                {alert.status === 'ACTIVE' && (
-                  <>
-                    <button
-                      onClick={() => handleAcknowledge(alert._id)}
-                      style={{
-                        padding: '8px 16px',
-                        backgroundColor: 'var(--color-accent)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: '500',
-                        transition: 'opacity 150ms ease'
-                      }}
-                      onMouseEnter={(e) => e.target.style.opacity = '0.8'}
-                      onMouseLeave={(e) => e.target.style.opacity = '1'}
-                    >
-                      Acknowledge
-                    </button>
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: '8px', marginLeft: '16px' }}>
+                  {alert.status === 'ACTIVE' && (
+                    <>
+                      <button
+                        onClick={() => handleAcknowledge(alert._id)}
+                        className="btn-secondary"
+                        style={{ height: '30px', padding: '0 12px', fontSize: '12px' }}
+                      >
+                        Acknowledge
+                      </button>
+                      <button
+                        onClick={() => handleResolve(alert._id)}
+                        className="btn-primary"
+                        style={{ height: '30px', padding: '0 12px', fontSize: '12px' }}
+                      >
+                        Resolve
+                      </button>
+                    </>
+                  )}
+                  {alert.status === 'ACKNOWLEDGED' && (
                     <button
                       onClick={() => handleResolve(alert._id)}
-                      style={{
-                        padding: '8px 16px',
-                        backgroundColor: '#10B981',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: '500',
-                        transition: 'opacity 150ms ease'
-                      }}
-                      onMouseEnter={(e) => e.target.style.opacity = '0.8'}
-                      onMouseLeave={(e) => e.target.style.opacity = '1'}
+                      className="btn-primary"
+                      style={{ height: '30px', padding: '0 12px', fontSize: '12px' }}
                     >
                       Resolve
                     </button>
-                  </>
-                )}
-                {alert.status === 'ACKNOWLEDGED' && (
-                  <button
-                    onClick={() => handleResolve(alert._id)}
-                    style={{
-                      padding: '8px 16px',
-                      backgroundColor: '#10B981',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      fontWeight: '500'
-                    }}
-                  >
-                    Mark Resolved
-                  </button>
-                )}
-                {(alert.status === 'RESOLVED' || alert.status === 'FALSE_POSITIVE') && (
-                  <span style={{ padding: '8px 16px', color: 'var(--color-text-secondary)', fontSize: '12px' }}>
-                    {alert.status}
-                  </span>
-                )}
+                  )}
+                  {(alert.status === 'RESOLVED' || alert.status === 'FALSE_POSITIVE') && (
+                    <span style={{ color: 'var(--color-text-tertiary)', fontSize: '12px', fontWeight: '500' }}>
+                      {alert.status}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

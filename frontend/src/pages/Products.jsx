@@ -3,6 +3,7 @@ import { InventoryContext } from '../context/InventoryContext';
 import { AuthContext } from '../context/AuthContext';
 import EditModal from '../components/EditModal';
 import api from '../services/api';
+import { Barcode, Edit, Plus, Trash, Check } from 'lucide-react';
 
 const Products = () => {
   const { products, fetchProducts } = useContext(InventoryContext);
@@ -64,29 +65,35 @@ const Products = () => {
   const openNew = () => { setEditingProduct(null); setIsModalOpen(true); };
   const openEdit = (product) => { setEditingProduct(product); setIsModalOpen(true); };
 
+  const selectedProduct = products.find(p => p._id === selectedId);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', position: 'relative' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '20px', flexWrap: 'wrap' }}>
-        <div style={{ flex: 1 }}>
-          <h2 style={{ fontSize: '28px' }}>PRODUCT REGISTRY</h2>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>TOTAL INVENTORY: {products.length} ITEMS</p>
+        <div>
+          <h2 style={{ fontSize: '24px', fontWeight: '600', letterSpacing: '-0.3px', margin: 0 }}>PRODUCT REGISTRY</h2>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '12px', marginTop: '4px' }}>
+            TOTAL REGISTERED: {products.length} SKUS
+          </p>
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
            <input 
-             placeholder="SEARCH SKU / NAME..." 
+             placeholder="Search sku or name..." 
              value={searchTerm} 
              onChange={e => setSearchTerm(e.target.value)} 
-             style={{ width: '250px' }}
+             style={{ width: '220px' }}
            />
            <select 
              value={filterCategory} 
              onChange={e => setFilterCategory(e.target.value)} 
-             style={{ width: '150px', appearance: 'none' }}
+             style={{ width: '160px' }}
            >
              <option value="">ALL CATEGORIES</option>
-             {categories.map(c => <option key={c} value={c}>{c}</option>)}
+             {categories.map(c => <option key={c} value={c}>{c.toUpperCase()}</option>)}
            </select>
-           <button className="btn-solid" onClick={openNew}>ADD NEW PRODUCT</button>
+           <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={openNew}>
+             <Plus size={16} /> ADD PRODUCT
+           </button>
         </div>
       </div>
 
@@ -106,36 +113,46 @@ const Products = () => {
           <tbody>
             {filteredProducts.map((product) => {
               const isLowStock = product.stock <= (product.lowStockThreshold || 10);
+              const isSelected = selectedId === product._id;
               return (
               <tr 
                 key={product._id} 
-                className={selectedId === product._id ? 'selected' : ''}
-                onClick={() => setSelectedId(product._id)}
+                className={isSelected ? 'selected' : ''}
+                onClick={() => setSelectedId(isSelected ? null : product._id)}
+                style={{ cursor: 'pointer' }}
               >
-                <td style={{ color: 'var(--color-text-secondary)' }}>...{product._id.slice(-5)}</td>
-                <td style={{ color: 'var(--color-text-heading)' }}>{product.name}</td>
-                <td>{product.sku}</td>
-                <td>{product.category}</td>
-                <td style={{ fontFamily: 'var(--font-heading)', fontSize: '16px' }}>{product.stock}</td>
+                <td style={{ color: 'var(--color-text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>
+                  {product._id.slice(-5).toUpperCase()}
+                </td>
+                <td style={{ color: 'var(--color-text-primary)', fontWeight: '500' }}>
+                  {product.name}
+                </td>
+                <td style={{ fontVariantNumeric: 'tabular-nums' }}>{product.sku}</td>
+                <td>{product.category?.toUpperCase()}</td>
+                <td style={{ fontVariantNumeric: 'tabular-nums', fontWeight: '600' }}>{product.stock}</td>
                 <td>
                   {isLowStock ? (
-                    <span style={{ 
-                      display: 'inline-block',
-                      border: '1px solid var(--color-text-heading)',
-                      backgroundColor: 'var(--color-bg-card)',
-                      color: 'var(--color-text-heading)',
-                      padding: '2px 8px',
-                      fontSize: '11px',
-                      fontWeight: 'bold'
-                    }}>LOW STOCK</span>
+                    <span className="badge badge-danger">LOW STOCK</span>
                   ) : (
-                    <span style={{ color: 'var(--color-text-muted)' }}>OK</span>
+                    <span className="badge badge-success">IN STOCK</span>
                   )}
                 </td>
                 <td style={{ textAlign: 'right' }}>
                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                    <button className="btn-outline" onClick={(e) => { e.stopPropagation(); window.open(`/api/products/${product.sku}/barcode`, '_blank'); }}>BARCODE</button>
-                    <button className="btn-outline" onClick={(e) => { e.stopPropagation(); openEdit(product); }}>EDIT</button>
+                    <button 
+                      className="btn-icon" 
+                      onClick={(e) => { e.stopPropagation(); window.open(`/api/products/${product.sku}/barcode`, '_blank'); }}
+                      title="Barcode view"
+                    >
+                      <Barcode size={14} />
+                    </button>
+                    <button 
+                      className="btn-icon" 
+                      onClick={(e) => { e.stopPropagation(); openEdit(product); }}
+                      title="Edit item"
+                    >
+                      <Edit size={14} />
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -143,6 +160,45 @@ const Products = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Floating Bulk Action Bar */}
+      {selectedId && selectedProduct && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: 'var(--color-surface-2)',
+          border: '1px solid var(--color-accent)',
+          borderRadius: '8px',
+          padding: '12px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '24px',
+          zIndex: 1000,
+          boxShadow: 'none'
+        }}>
+          <div style={{ fontSize: '13px', color: 'var(--color-text-primary)' }}>
+            Selected SKU: <strong style={{ color: 'var(--color-accent)' }}>{selectedProduct.sku}</strong> ({selectedProduct.name})
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button 
+              className="btn-primary" 
+              style={{ height: '30px', padding: '0 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+              onClick={() => openEdit(selectedProduct)}
+            >
+              <Edit size={12} /> Edit Item
+            </button>
+            <button 
+              className="btn-secondary" 
+              style={{ height: '30px', padding: '0 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+              onClick={() => window.open(`/api/products/${selectedProduct.sku}/barcode`, '_blank')}
+            >
+              <Barcode size={12} /> Barcode
+            </button>
+          </div>
+        </div>
+      )}
 
       <EditModal 
         isOpen={isModalOpen} 

@@ -105,50 +105,51 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: '100vh',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0a0a0f',
     padding: '20px',
-    fontFamily: 'system-ui, -apple-system, sans-serif'
+    fontFamily: 'Inter, -apple-system, sans-serif'
   },
   card: {
-    backgroundColor: 'white',
+    backgroundColor: '#111118',
     borderRadius: '8px',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+    border: '1px solid #2a2a3a',
     padding: '40px',
     maxWidth: '500px',
     textAlign: 'center'
   },
   title: {
-    color: '#d32f2f',
+    color: '#ef4444',
     marginBottom: '16px',
-    fontSize: '24px'
+    fontSize: '24px',
+    fontWeight: '600'
   },
   message: {
-    color: '#666',
+    color: '#8888aa',
     marginBottom: '24px',
-    fontSize: '16px',
-    lineHeight: '1.5'
+    fontSize: '14px',
+    lineHeight: '1.6'
   },
   details: {
     textAlign: 'left',
     marginBottom: '24px',
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#1a1a24',
     padding: '12px',
-    borderRadius: '4px',
-    border: '1px solid #e0e0e0'
+    borderRadius: '6px',
+    border: '1px solid #2a2a3a'
   },
   summary: {
     cursor: 'pointer',
-    fontWeight: 'bold',
-    color: '#1976d2',
+    fontWeight: '600',
+    color: '#6366f1',
     marginBottom: '8px'
   },
   pre: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#111118',
     padding: '12px',
-    borderRadius: '4px',
+    borderRadius: '6px',
     overflow: 'auto',
     fontSize: '12px',
-    color: '#333'
+    color: '#f0f0f8'
   },
   buttonContainer: {
     display: 'flex',
@@ -159,25 +160,27 @@ const styles = {
   button: {
     padding: '10px 24px',
     fontSize: '14px',
-    fontWeight: 'bold',
+    fontWeight: '500',
     border: 'none',
-    borderRadius: '4px',
-    backgroundColor: '#1976d2',
+    borderRadius: '6px',
+    backgroundColor: '#6366f1',
     color: 'white',
     cursor: 'pointer',
-    transition: 'background-color 0.2s'
+    transition: 'filter 150ms ease'
   },
   secondaryButton: {
-    backgroundColor: '#6c757d'
+    backgroundColor: '#1a1a24',
+    border: '1px solid #2a2a3a',
+    color: '#f0f0f8'
   },
   errorCount: {
     fontSize: '12px',
-    color: '#999',
+    color: '#55556a',
     marginTop: '16px'
   },
   warning: {
-    color: '#d32f2f',
-    fontWeight: 'bold'
+    color: '#ef4444',
+    fontWeight: '600'
   }
 };
 
