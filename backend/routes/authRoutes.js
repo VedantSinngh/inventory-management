@@ -567,5 +567,38 @@ const setupHandler = async (req, res) => {
 router.get('/setup', setupHandler);
 router.post('/setup', setupHandler);
 
+// Admin: Fix password hashing for users with plain text passwords
+// This endpoint rehashes all plain text passwords
+router.post('/migrate-passwords', async (req, res) => {
+  try {
+    console.log('🔍 Starting password migration...');
+    const users = await User.find({});
+    
+    let updated = 0;
+    for (const user of users) {
+      // Check if password is already hashed (bcrypt hashes start with $2a$, $2b$, or $2x$)
+      const isHashed = user.password.startsWith('$2a$') || user.password.startsWith('$2b$') || user.password.startsWith('$2x$');
+      
+      if (!isHashed) {
+        console.log(`  Rehashing: ${user.email}`);
+        // Force password re-hashing by marking as modified and saving
+        user.password = user.password; // This triggers the pre-save hook
+        await user.save();
+        updated++;
+      }
+    }
+
+    res.json({
+      message: 'Password migration completed',
+      updated,
+      total: users.length,
+      note: 'This endpoint should be removed or protected after first use'
+    });
+  } catch (error) {
+    console.error('Migration error:', error);
+    res.status(500).json({ message: 'Migration error', error: error.message });
+  }
+});
+
 export default router;
 
