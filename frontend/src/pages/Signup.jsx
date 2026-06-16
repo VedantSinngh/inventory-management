@@ -86,7 +86,8 @@ const Signup = () => {
     }
   };
 
-  if (loading) return <Spinner fullScreen text="Processing..." />;
+  // Instead of unmounting the form, overlay the spinner to prevent password manager crashes
+  // We'll handle this in the return statement below
 
   return (
     <div style={{
@@ -95,15 +96,17 @@ const Signup = () => {
       backgroundColor: 'var(--color-bg-primary)',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center'
+      justifyContent: 'center',
+      position: 'relative'
     }}>
+      {loading && <Spinner fullScreen text="Processing..." />}
       <div style={{
         backgroundColor: 'var(--color-bg-card)',
         border: '1px solid var(--color-border)',
         padding: '40px',
         width: '100%',
         maxWidth: '400px',
-        display: 'flex',
+        display: loading ? 'none' : 'flex',
         flexDirection: 'column'
       }}>
         {step === 'signup' ? (
