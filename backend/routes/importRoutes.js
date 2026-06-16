@@ -1,5 +1,5 @@
 import express from 'express';
-import { protect, admin } from '../middleware/authMiddleware.js';
+import { protect, admin } from '../middleware/auth.js';
 import mongoose from 'mongoose';
 import Product from '../models/Product.js';
 import Supplier from '../models/Supplier.js';
