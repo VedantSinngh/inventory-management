@@ -76,7 +76,8 @@ export const InventoryProvider = ({ children }) => {
       });
       if (res.ok) {
         const data = await res.json();
-        setProducts(data.data || data || []);
+        const items = Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : (data.products || []);
+        setProducts(items);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -92,7 +93,8 @@ export const InventoryProvider = ({ children }) => {
       });
       if (res.ok) {
         const data = await res.json();
-        setOrders(data.data || data || []);
+        const items = Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : (data.orders || []);
+        setOrders(items);
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -108,7 +110,8 @@ export const InventoryProvider = ({ children }) => {
       });
       if (res.ok) {
         const data = await res.json();
-        setWarehouses(data.data || data || []);
+        const items = Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : (data.warehouses || []);
+        setWarehouses(items);
       }
     } catch (error) {
       console.error('Error fetching warehouses:', error);
@@ -124,7 +127,8 @@ export const InventoryProvider = ({ children }) => {
       });
       if (res.ok) {
         const data = await res.json();
-        setAlerts(data.data || data || []);
+        const items = Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : (data.alerts || []);
+        setAlerts(items);
       }
     } catch (error) {
       console.error('Error fetching alerts:', error);
@@ -140,7 +144,8 @@ export const InventoryProvider = ({ children }) => {
       });
       if (res.ok) {
         const data = await res.json();
-        setShipments(data.data || data || []);
+        const items = Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : (data.shipments || []);
+        setShipments(items);
       }
     } catch (error) {
       console.error('Error fetching shipments:', error);
@@ -156,7 +161,8 @@ export const InventoryProvider = ({ children }) => {
       });
       if (res.ok) {
         const data = await res.json();
-        setBatches(data.data || data || []);
+        const items = Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : (data.batches || []);
+        setBatches(items);
       }
     } catch (error) {
       console.error('Error fetching batches:', error);
