@@ -1,0 +1,170 @@
+================================================================================
+INVENTORY MANAGEMENT SYSTEM - COMPLETE FEATURE LIST & INTERNAL WORKINGS
+================================================================================
+
+This document details all the features of the Inventory Management System (MERN Stack)
+and explains their internal implementation mechanics, database structures, services,
+and algorithms.
+
+--------------------------------------------------------------------------------
+1. AUTHENTICATION & ROLE-BASED ACCESS CONTROL (RBAC)
+--------------------------------------------------------------------------------
+* Features:
+  - Secure user login and signup with password hashing.
+  - Multi-role permission model: ADMIN, MANAGER, STAFF.
+  - Email verification (via tokens/links) and self-service Password Reset.
+  - IP-based rate limiting on sensitive authentication routes.
+* Internal Workings:
+  - Backend: JSON Web Tokens (JWT) are signed upon successful login (containing the user ID and role) and verified on API requests. Token credentials can be retrieved using GET `/api/auth/me`.
+  - Storage: Authentication tokens are stored in the client's Session Storage rather than LocalStorage for security reasons.
+  - Password Security: Handled via `bcrypt` hashing on the MongoDB user model pre-save hooks.
+  - Middleware: The `protect` middleware extracts the JWT from the Authorization header (`Bearer <token>`). The `authorize(['ROLE1', 'ROLE2'])` middleware restricts access to specific roles.
+  - Email flows (Verification / Reset) are routed through SendGrid via `emailService.js`.
+
+--------------------------------------------------------------------------------
+2. PRODUCT & STOCK MANAGEMENT
+--------------------------------------------------------------------------------
+* Features:
+  - CRUD operations for inventory items (sku, name, category, stock count, cost, pricing, tags, lowStockThreshold, and safety stock).
+  - Soft deletion support (stores deletion timestamp without wiping data).
+  - Bulk CSV/Excel data import to wipe and seed the database.
+* Internal Workings:
+  - Mongoose models validate fields such as unique SKUs.
+  - Updates to stock levels automatically verify integrity to ensure stock counts never drop below zero.
+  - Stock updates are broadcasted to all active dashboards instantly using WebSocket events.
+  - CSV Import (`importRoutes.js`) parses raw CSV strings and maps fields directly to MongoDB documents using bulk operations.
+
+--------------------------------------------------------------------------------
+3. WAREHOUSE & MULTI-LOCATION INVENTORY
+--------------------------------------------------------------------------------
+* Features:
+  - Manage multiple physical warehouses with location names, codes, addresses, coordinates (latitude/longitude), and stock levels.
+  - Transfer inventory items between warehouses with validation check on source warehouse availability.
+* Internal Workings:
+  - Each warehouse document holds address fields including lat/lng coordinate variables.
+  - Real-time warehouse activity logs are broadcasted to dedicated rooms using WebSockets: `warehouse-<warehouseId>` and the general dashboard.
+
+--------------------------------------------------------------------------------
+4. DIJKSTRA ROUTE OPTIMIZATION & SHIPMENT LOGISTICS
+--------------------------------------------------------------------------------
+* Features:
+  - Live shipment management: track weight, dimensions, current status, origin, destination, assigned vehicles, and carrier tracking links.
+  - Optimal routing between nodes (warehouses, suppliers, and client destinations) based on COST, DISTANCE, or TIME.
+  - Dynamic shipment re-routing: if a warehouse runs out of stock, recalculate optimal routes from the next nearest warehouse containing the product.
+  - Multi-stop route planning to organize sequential stops efficiently.
+* Internal Workings:
+  - Graph Algorithm: `dijkstraRoutePlannerService.js` constructs a graph where vertices represent nodes (Warehouses & Suppliers) and edges represent paths between them. The custom class uses a standard priority-queue implementation of Dijkstra's algorithm. If no physical route database entry exists, edge costs/distances are computed dynamically using GPS coordinates.
+  - Dynamic Re-routing: `/api/routes/reroute` queries the database for alternative warehouses containing the requested product SKU. It iterates through candidate warehouses, runs Dijkstra to the destination, and automatically changes the origin warehouse for the shipment to the one with the lowest cost.
+
+--------------------------------------------------------------------------------
+5. WEATHER IMPACT ANALYSIS
+--------------------------------------------------------------------------------
+* Features:
+  - Analyze logistics and route delays based on live weather data.
+  - Adjust delivery ETAs and output warnings/recommendations based on adverse conditions along the route.
+* Internal Workings:
+  - `weatherService.js` retrieves meteorological reports for route coordinates (via OpenWeatherMap API integrations).
+  - It applies formulas adjusting average transit speeds based on severity parameters (e.g. storms reduce speed by 40%, heavy snow by 60%). The final calculated transit hours are added to the ETA.
+
+--------------------------------------------------------------------------------
+6. REAL-TIME SHIPMENT GPS SIMULATOR
+--------------------------------------------------------------------------------
+* Features:
+  - Start and stop simulated shipments to display real-time truck progression on maps.
+  - Python truck simulator script (`simulate_truck.py`) to hit API endpoints mimicking real-world GPS feeds.
+* Internal Workings:
+  - `simulatorService.js` spawns async routines updating location markers periodically using predefined route coordinates.
+  - In addition, `simulate_truck.py` reads a JWT token, targets `/api/shipments/:id/location` via HTTP PUT, and increments latitude/longitude points every 5 seconds.
+  - Location updates emit the WebSocket event `shipment-update` to all clients subscribed to the `shipment-<shipmentId>` channel.
+
+--------------------------------------------------------------------------------
+7. REORDER ENGINE (MIN-HEAP PRIORITY QUEUE)
+--------------------------------------------------------------------------------
+* Features:
+  - Priority Queue ranking of items needing reordering based on stock velocity, low-stock threshold, and supplier lead times.
+  - Automated Purchase Order (PO) creation for critical-level inventory.
+  - Statistical Reorder Point (ROP) and safety stock prediction.
+* Internal Workings:
+  - Min-Heap Implementation: `priorityReorderQueueService.js` uses a custom Min-Heap data structure to rank items. The priority key is derived from: `Stock level relative to threshold` / (`Sales Velocity` * `Lead Time`).
+  - Auto-Order: `/api/reorders/priority/auto-order` runs a batch transaction that queries products with `autoReorder: true` currently below their critical thresholds, automatically creating associated PURCHASE orders for those products' assigned suppliers.
+  - Predictive Analytics: Calculates optimal Safety Stock using daily demand standard deviations and lead time variances over the past 90 days. Uses the formula:
+    Safety Stock = Z * sqrt( L * (stdDevDemand^2) + (avgDailyDemand^2) * (sigmaL^2) )
+    where Z = 1.65 (for 95% service level) and L is lead time.
+
+--------------------------------------------------------------------------------
+8. CYCLE COUNTING (PHYSICAL AUDITS)
+--------------------------------------------------------------------------------
+* Features:
+  - Plan, assign, and execute physical cycle counts to verify system quantities.
+  - Generate discrepancy values, discrepancy reasons, and overall count accuracy percentage statistics.
+* Internal Workings:
+  - Standard workflow: Cycle count created in PLANNED status. Items are added with their current database quantities as `systemQuantity`.
+  - Auditing: A staff member logs physical counts using `/api/cycle-counts/:id/items/:itemIndex`. The server calculates `discrepancy = countedQuantity - systemQuantity`.
+  - Stats Calculation: The server computes the count accuracy percentage using the formula:
+    Accuracy % = ((Counted Items - Discrepancy Items) / Counted Items) * 100
+    Completed audits update the inventory counts dynamically.
+
+--------------------------------------------------------------------------------
+9. PRODUCT AUTOCOMPLETE PREFIX TREE (TRIE)
+--------------------------------------------------------------------------------
+* Features:
+  - Ultra-fast product search autocomplete by name, SKU, category, or tags.
+  - Fuzzy search capability supporting typo tolerance.
+* Internal Workings:
+  - Data Structure: `productTrieService.js` manages a Trie tree built in memory from the database products list.
+  - Autocomplete: Traverses the tree path character-by-character in O(L) time (where L is length of prefix query), then runs DFS to collect matched children nodes up to the limit.
+  - Fuzzy Match: Evaluates search terms using the Levenshtein distance algorithm. Any path matches with a Levenshtein distance <= 2 are scored and sorted by relevance.
+
+--------------------------------------------------------------------------------
+10. DEMAND FORECASTING SERVICE
+--------------------------------------------------------------------------------
+* Features:
+  - Generate future demand forecasts using historical order sales.
+  - Supported algorithms: Simple Moving Average (SMA), Weighted Moving Average (WMA), and Exponential Smoothing (ES).
+  - Accuracy metrics: Mean Absolute Percentage Error (MAPE) validation.
+* Internal Workings:
+  - `forecastingService.js` aggregates completed orders over the last 12 months using MongoDB aggregation pipelines grouped by month.
+  - Linear regression calculates demand trends (rising or falling), recommending pricing changes (e.g. decrease price to clear slowing stock).
+  - Confidence intervals are computed based on MAPE deviation values.
+
+--------------------------------------------------------------------------------
+11. ANOMALY DETECTION ENGINE
+--------------------------------------------------------------------------------
+* Features:
+  - Detects volume anomalies (unusually large stock transactions).
+  - Detects frequency anomalies (unusually high counts of movements in short timeframes).
+  - Identifies dead stock (items with zero movement over a 90+ day window).
+* Internal Workings:
+  - `anomalyDetectionService.js` queries recent Audit Logs. It calculates baseline statistics (Mean, Median, Standard Deviation) of past transaction volumes.
+  - Z-Score Algorithm: Evaluates each movement. A Z-score greater than the configured sensitivity threshold triggers a `VOLUME_ANOMALY` database alert.
+  - Frequency & Pattern matching checks for time intervals between transaction logs. If the average interval is 50% smaller than the historical standard, a `PATTERN_ANOMALY` is raised.
+
+--------------------------------------------------------------------------------
+12. LLM-POWERED SMART ALERTS
+--------------------------------------------------------------------------------
+* Features:
+  - Generate human-readable, professional summaries and instructions for system alerts.
+  - Multi-provider flexibility (Groq, OpenAI, Anthropic, Ollama).
+* Internal Workings:
+  - `llmAlertService.js` constructs natural language prompts containing current inventory numbers, threshold bounds, supplier details, and shipment status.
+  - It submits these context payloads to APIs (e.g. Llama models via Groq, GPT-4o-mini via OpenAI) to receive clean, action-oriented messages under 150 characters.
+  - A local template fallback system generates text if LLM services are offline or API keys are missing.
+
+--------------------------------------------------------------------------------
+13. SYSTEM AUDIT TRAIL
+--------------------------------------------------------------------------------
+* Features:
+  - Immutable log tracking of all database writes, stock transfers, logins, and status updates.
+* Internal Workings:
+  - Every operational endpoint uses Mongoose hooks or service wrappers to create an `AuditLog` record containing: entity ID, entity type, action string (e.g. STOCK_IN, STOCK_OUT), userId, and JSON details diff.
+
+--------------------------------------------------------------------------------
+14. QUALITY CONTROL & EXPIRY BATCH MANAGEMENT
+--------------------------------------------------------------------------------
+* Features:
+  - Track product inventory down to specific batch numbers, manufacture dates, and expiration dates.
+  - FEFO (First-Expired, First-Out) batch allocation rules.
+* Internal Workings:
+  - `batchRoutes.js` and `batchTrackingService.js` enforce sorting by expiration date when allocating products to sales orders.
+  - Tracks quality statuses: APPROVED, QUARANTINED, or REJECTED.
+================================================================================

@@ -20,7 +20,7 @@ import Returns from './pages/Returns';
 import DeadStock from './pages/DeadStock';
 import MobileScanner from './pages/MobileScanner';
 import VerifyEmail from './pages/VerifyEmail';
-import { Package, ShoppingCart, LayoutDashboard, LogOut, Warehouse, Users as UsersIcon, Truck, Building2, Boxes, AlertCircle, BarChart3, ClipboardList, Percent, Camera, Bell, Menu, X, ChevronDown } from 'lucide-react';
+import { Package, ShoppingCart, LayoutDashboard, LogOut, Warehouse, Users as UsersIcon, Truck, Building2, Boxes, AlertCircle, BarChart3, ClipboardList, Percent, Camera, Bell, Menu, X, ChevronDown, Sun, Moon } from 'lucide-react';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import { InventoryProvider, InventoryContext } from './context/InventoryContext';
 import { ToastProvider } from './context/ToastContext';
@@ -28,13 +28,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import ToastContainer from './components/ToastContainer';
 import AlertCenter from './components/AlertCenter';
 
-const MStripe = () => (
-  <div className="m-stripe-divider">
-    <div className="m-light-blue"></div>
-    <div className="m-dark-blue"></div>
-    <div className="m-red"></div>
-  </div>
-);
+// Removed MStripe to align with Airtable minimalist design
+
 
 const TopNav = () => {
   const { user, logout } = useContext(AuthContext);
@@ -42,6 +37,17 @@ const TopNav = () => {
   const [alertOpen, setAlertOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
 
   const navGroups = {
     'Operations': [
@@ -147,8 +153,7 @@ const TopNav = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '32px', height: '100%' }}>
           {/* Logo Area */}
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-            <div style={{ width: '24px' }}><MStripe /></div>
-            <span style={{ fontSize: '20px', fontWeight: '700', letterSpacing: '1px', color: 'var(--color-on-dark)' }}>
+            <span style={{ fontSize: '20px', fontWeight: '500', color: 'var(--color-ink)' }}>
               SYSTEM.M
             </span>
           </Link>
@@ -179,13 +184,17 @@ const TopNav = () => {
             </span>
           </div>
 
-          <button onClick={() => setAlertOpen(true)} className="btn-icon" style={{ width: '40px', height: '40px', backgroundColor: 'transparent' }}>
-            <Bell size={20} style={{ color: 'var(--color-on-dark)' }} />
+          <button onClick={() => setAlertOpen(true)} className="btn-icon-circular" style={{ backgroundColor: 'transparent', border: 'none' }}>
+            <Bell size={20} style={{ color: 'var(--color-ink)' }} />
+          </button>
+
+          <button onClick={toggleTheme} className="btn-icon-circular" style={{ backgroundColor: 'transparent', border: 'none' }}>
+            {theme === 'light' ? <Moon size={20} style={{ color: 'var(--color-ink)' }} /> : <Sun size={20} style={{ color: 'var(--color-ink)' }} />}
           </button>
 
           {/* User Profile */}
           <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '16px', borderLeft: '1px solid var(--color-hairline)', paddingLeft: '24px' }}>
-            <div style={{ fontSize: '14px', color: 'var(--color-on-dark)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            <div style={{ fontSize: '14px', color: 'var(--color-ink)', fontWeight: '500' }}>
               {user?.name || 'USER'}
             </div>
             <button onClick={logout} style={{ color: 'var(--color-muted)', cursor: 'pointer', background: 'none', border: 'none' }}>
@@ -194,7 +203,7 @@ const TopNav = () => {
           </div>
 
           {/* Mobile Menu Toggle */}
-          <button className="mobile-only" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} style={{ color: 'var(--color-on-dark)' }}>
+          <button className="mobile-only" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} style={{ color: 'var(--color-ink)' }}>
             {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
@@ -215,15 +224,14 @@ const TopNav = () => {
           overflowY: 'auto',
           padding: '24px'
         }}>
-          <MStripe />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '24px' }}>
-            <Link to="/" onClick={() => setMobileMenuOpen(false)} style={{ fontSize: '18px', fontWeight: '700', color: 'var(--color-on-dark)', textTransform: 'uppercase' }}>Dashboard</Link>
+            <Link to="/" onClick={() => setMobileMenuOpen(false)} style={{ fontSize: '18px', fontWeight: '500', color: 'var(--color-ink)' }}>Dashboard</Link>
             {Object.entries(navGroups).map(([title, items]) => (
               <div key={title}>
                 <div style={{ fontSize: '12px', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>{title}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingLeft: '12px', borderLeft: '1px solid var(--color-hairline)' }}>
                   {items.map(item => (
-                    <Link key={item.path} to={item.path} onClick={() => setMobileMenuOpen(false)} style={{ fontSize: '16px', color: 'var(--color-on-dark)', textDecoration: 'none' }}>
+                    <Link key={item.path} to={item.path} onClick={() => setMobileMenuOpen(false)} style={{ fontSize: '16px', color: 'var(--color-ink)', textDecoration: 'none' }}>
                       {item.label}
                     </Link>
                   ))}
@@ -231,8 +239,8 @@ const TopNav = () => {
               </div>
             ))}
             <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--color-hairline)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '16px', color: 'var(--color-on-dark)', textTransform: 'uppercase' }}>{user?.name}</span>
-              <button onClick={() => { logout(); setMobileMenuOpen(false); }} className="btn-secondary" style={{ height: '36px', padding: '0 16px' }}>LOGOUT</button>
+              <span style={{ fontSize: '16px', color: 'var(--color-ink)', fontWeight: '500' }}>{user?.name}</span>
+              <button onClick={() => { logout(); setMobileMenuOpen(false); }} className="btn-secondary" style={{ padding: '8px 16px' }}>Logout</button>
             </div>
           </div>
         </div>
@@ -284,8 +292,7 @@ const ProtectedRoute = ({ children }) => {
         backgroundColor: 'var(--color-canvas)'
       }}>
         <div style={{ textAlign: 'center', color: 'var(--color-muted)' }}>
-          <div style={{ fontSize: '14px', fontWeight: '300', textTransform: 'uppercase', letterSpacing: '2px' }}>SYSTEM.M INITIALIZING...</div>
-          <div style={{ width: '48px', margin: '16px auto' }}><MStripe /></div>
+          <div style={{ fontSize: '16px', fontWeight: '500' }}>Initializing...</div>
         </div>
       </div>
     );
@@ -296,6 +303,12 @@ const ProtectedRoute = ({ children }) => {
 };
 
 function App() {
+  useEffect(() => {
+    // Ensure initial theme is applied before React renders protected routes
+    const storedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', storedTheme);
+  }, []);
+
   return (
     <ErrorBoundary>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
