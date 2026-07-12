@@ -62,6 +62,18 @@
   /* Typography Fallbacks */
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
   --font-family-pricing: 'Inter Display', var(--font-family);
+
+  /* Page Compatibility Overrides (Light Mode) */
+  --color-text-primary: var(--color-ink);
+  --color-text-secondary: var(--color-body);
+  --color-text-tertiary: var(--color-muted);
+  --color-text-heading: var(--color-ink);
+  --color-bg-primary: var(--color-canvas);
+  --color-bg-secondary: var(--color-surface-soft);
+  --color-surface-card: var(--color-canvas);
+  --color-border: var(--color-hairline);
+  --color-accent: var(--color-primary);
+  --color-m-red: var(--color-danger);
 }
 
 [data-theme="dark"] {
@@ -85,6 +97,18 @@
   /* Note: Signature cards typically remain full-bleed dark/colorful in dark mode too, 
      but we can adjust text colors if needed */
   --color-signature-cream: #2a2620; /* Darker cream equivalent */
+
+  /* Page Compatibility Overrides (Dark Mode) */
+  --color-text-primary: var(--color-ink);
+  --color-text-secondary: var(--color-body);
+  --color-text-tertiary: var(--color-muted);
+  --color-text-heading: var(--color-ink);
+  --color-bg-primary: var(--color-canvas);
+  --color-bg-secondary: var(--color-surface-soft);
+  --color-surface-card: var(--color-surface-strong);
+  --color-border: var(--color-hairline);
+  --color-accent: var(--color-primary);
+  --color-m-red: var(--color-danger);
 }
 
 * {

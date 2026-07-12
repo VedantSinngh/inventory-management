@@ -84,18 +84,17 @@ const TopNav = () => {
         onMouseEnter={() => setIsOpen(true)}
         onMouseLeave={() => setIsOpen(false)}
       >
-        <div style={{
-          color: isOpen ? 'var(--color-on-dark)' : 'var(--color-body)',
+        <div className={`nav-link-dropdown ${isOpen ? 'active' : ''}`} style={{
           cursor: 'pointer',
           padding: '0 16px',
-          fontWeight: isOpen ? '700' : '400',
           fontSize: '14px',
           textTransform: 'uppercase',
           letterSpacing: '0.5px',
           display: 'flex',
           alignItems: 'center',
           gap: '4px',
-          transition: 'color 150ms'
+          transition: 'color 150ms',
+          height: '100%'
         }}>
           {title} <ChevronDown size={14} />
         </div>
@@ -110,21 +109,14 @@ const TopNav = () => {
             minWidth: '200px',
             zIndex: 1000,
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            boxShadow: '0 8px 16px rgba(0,0,0,0.08)'
           }}>
             {items.map(item => (
               <Link 
                 key={item.path} 
                 to={item.path}
-                style={{
-                  padding: '12px 16px',
-                  color: location.pathname === item.path ? 'var(--color-on-dark)' : 'var(--color-body)',
-                  fontWeight: location.pathname === item.path ? '700' : '400',
-                  textDecoration: 'none',
-                  fontSize: '14px',
-                  borderBottom: '1px solid var(--color-hairline)',
-                  transition: 'background-color 150ms'
-                }}
+                className={`dropdown-link ${location.pathname === item.path ? 'active' : ''}`}
               >
                 {item.label}
               </Link>
@@ -160,15 +152,7 @@ const TopNav = () => {
 
           {/* Desktop Nav */}
           <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-            <Link to="/" style={{
-              color: location.pathname === '/' ? 'var(--color-on-dark)' : 'var(--color-body)',
-              padding: '0 16px',
-              fontWeight: location.pathname === '/' ? '700' : '400',
-              fontSize: '14px',
-              textTransform: 'uppercase',
-              textDecoration: 'none',
-              letterSpacing: '0.5px'
-            }}>Dashboard</Link>
+            <Link to="/" className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}>Dashboard</Link>
             {Object.entries(navGroups).map(([title, items]) => (
               <NavDropdown key={title} title={title} items={items} />
             ))}
@@ -252,6 +236,51 @@ const TopNav = () => {
         }
         @media (min-width: 1025px) {
           .mobile-only { display: none !important; }
+        }
+        
+        .nav-link {
+          color: var(--color-body);
+          padding: 0 16px;
+          font-size: 14px;
+          text-transform: uppercase;
+          text-decoration: none;
+          letter-spacing: 0.5px;
+          transition: color 150ms;
+          display: flex;
+          align-items: center;
+          height: 100%;
+          font-weight: 400;
+        }
+        .nav-link:hover, .nav-link.active {
+          color: var(--color-ink);
+          font-weight: 700;
+        }
+
+        .nav-link-dropdown {
+          color: var(--color-body);
+          font-weight: 400;
+        }
+        .nav-link-dropdown.active, .nav-link-dropdown:hover {
+          color: var(--color-ink);
+          font-weight: 700;
+        }
+
+        .dropdown-link {
+          padding: 12px 16px;
+          color: var(--color-body);
+          font-size: 14px;
+          text-decoration: none;
+          border-bottom: 1px solid var(--color-hairline);
+          transition: background-color 150ms, color 150ms;
+        }
+        .dropdown-link:hover {
+          background-color: var(--color-surface-soft);
+          color: var(--color-ink);
+        }
+        .dropdown-link.active {
+          background-color: var(--color-surface-soft);
+          color: var(--color-primary);
+          font-weight: 700;
         }
       `}</style>
     </>
