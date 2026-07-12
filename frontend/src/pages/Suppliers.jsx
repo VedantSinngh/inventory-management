@@ -23,7 +23,7 @@ const Suppliers = () => {
     try {
       setLoading(true);
       const response = await api.get('/suppliers?page=1&limit=20');
-      setSuppliers(response.data.suppliers || []);
+      setSuppliers(response.suppliers || []);
     } catch (error) {
       console.error('Error fetching suppliers:', error);
     } finally {
