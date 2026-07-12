@@ -280,11 +280,11 @@ class APIService {
   }
 
   acknowledgeAlert(id) {
-    return this.put(`/alerts/${id}`, { status: 'ACKNOWLEDGED' });
+    return this.put(`/alerts/${id}/acknowledge`, { notes: 'Acknowledged by user' });
   }
 
   resolveAlert(id, resolution = '') {
-    return this.put(`/alerts/${id}`, { status: 'RESOLVED', resolution });
+    return this.put(`/alerts/${id}/resolve`, { resolution });
   }
 
   // ========== BATCHES ==========

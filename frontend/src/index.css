@@ -74,6 +74,8 @@
   --color-border: var(--color-hairline);
   --color-accent: var(--color-primary);
   --color-m-red: var(--color-danger);
+  --color-surface-1: var(--color-canvas);
+  --color-surface-2: var(--color-surface-soft);
 }
 
 [data-theme="dark"] {
@@ -109,6 +111,8 @@
   --color-border: var(--color-hairline);
   --color-accent: var(--color-primary);
   --color-m-red: var(--color-danger);
+  --color-surface-1: var(--color-surface-soft);
+  --color-surface-2: var(--color-surface-strong);
 }
 
 * {
