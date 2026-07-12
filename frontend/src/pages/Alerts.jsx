@@ -95,28 +95,25 @@ const Alerts = () => {
   };
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '700', letterSpacing: '-0.5px', margin: 0, color: 'var(--color-ink)' }}>Logistics Alert Registry</h1>
-          <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>Real-time quality control, stockouts, and carrier notifications</p>
+          <h1 style={{ marginBottom: '6px' }}>Alerts</h1>
+          <p style={{ fontSize: '15px', color: 'var(--color-muted)' }}>Real-time quality control, stockouts, and carrier notifications</p>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', backgroundColor: 'var(--color-surface-soft)', padding: '8px 16px', borderRadius: 'var(--rounded-pill)', border: '1px solid var(--color-hairline)' }}>
-          <AlertCircle size={16} style={{ color: 'var(--color-danger)' }} />
-          <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--color-ink)' }}>{alerts.length} Active Records</span>
+          <AlertCircle size={14} style={{ color: 'var(--color-danger)' }} />
+          <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--color-ink)' }}>{alerts.length} active</span>
         </div>
       </div>
 
-      {/* Filters Segment Control */}
+      {/* Filters */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         gap: '16px',
-        marginBottom: '32px',
         flexWrap: 'wrap',
-        borderBottom: '1px solid var(--color-hairline)',
-        paddingBottom: '16px'
       }}>
         <div style={{
           display: 'flex',
@@ -195,8 +192,7 @@ const Alerts = () => {
         </div>
       )}
 
-      {/* Loading */}
-      {loading && <Spinner />}
+      {loading && <div style={{ display: 'flex', justifyContent: 'center', padding: '48px' }}><Spinner text="Loading alerts…" /></div>}
 
       {/* Alerts List */}
       {!loading && alerts.length > 0 && (
@@ -321,57 +317,27 @@ const Alerts = () => {
       {/* Empty State */}
       {!loading && alerts.length === 0 && (
         <div style={{
-          padding: '48px 24px',
-          textAlign: 'center',
-          color: 'var(--color-text-secondary)'
+          padding: '64px 24px', textAlign: 'center', color: 'var(--color-muted)',
+          backgroundColor: 'var(--color-surface-card)', border: '1px solid var(--color-hairline)',
+          borderRadius: 'var(--rounded-xl)'
         }}>
-          <AlertCircle size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
-          <p style={{ fontSize: '16px', margin: 0 }}>No alerts found</p>
+          <AlertCircle size={40} style={{ opacity: 0.3, marginBottom: '12px' }} />
+          <p style={{ fontSize: '16px' }}>No alerts found</p>
         </div>
       )}
 
       {/* Pagination */}
       {!loading && totalPages > 1 && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '12px',
-          marginTop: '24px',
-          padding: '16px'
-        }}>
-          <button
-            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-            disabled={currentPage === 1}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: currentPage === 1 ? 'var(--color-bg-secondary)' : 'var(--color-accent)',
-              color: currentPage === 1 ? 'var(--color-text-secondary)' : 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-              fontSize: '14px'
-            }}
-          >
-            ← Previous
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+          <button onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1}
+            className="btn-secondary" style={{ height: '36px', padding: '0 14px', fontSize: '13px', opacity: currentPage === 1 ? 0.4 : 1 }}>
+            ← Prev
           </button>
-          
-          <span style={{ padding: '8px 16px', color: 'var(--color-text-secondary)' }}>
-            Page {currentPage} of {totalPages}
+          <span style={{ display: 'flex', alignItems: 'center', fontSize: '14px', color: 'var(--color-muted)', padding: '0 12px' }}>
+            {currentPage} of {totalPages}
           </span>
-          
-          <button
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-            disabled={currentPage === totalPages}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: currentPage === totalPages ? 'var(--color-bg-secondary)' : 'var(--color-accent)',
-              color: currentPage === totalPages ? 'var(--color-text-secondary)' : 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-              fontSize: '14px'
-            }}
-          >
+          <button onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages}
+            className="btn-secondary" style={{ height: '36px', padding: '0 14px', fontSize: '13px', opacity: currentPage === totalPages ? 0.4 : 1 }}>
             Next →
           </button>
         </div>

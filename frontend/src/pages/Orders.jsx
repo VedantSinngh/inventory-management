@@ -1,140 +1,181 @@
 import React, { useState, useContext } from 'react';
 import { InventoryContext } from '../context/InventoryContext';
 import CreateOrderModal from '../components/CreateOrderModal';
-import { ChevronDown, ChevronUp, Plus, ShoppingBag } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Check, X } from 'lucide-react';
+
+const renderStatusBadge = (status) => {
+  const map = {
+    COMPLETED: 'badge-success',
+    PENDING:   'badge-warning',
+    APPROVED:  'badge-info',
+    CANCELLED: 'badge-danger',
+  };
+  return <span className={`badge ${map[status] || 'badge-muted'}`}>{status}</span>;
+};
 
 const Orders = () => {
   const { orders, api, fetchOrders, fetchProducts } = useContext(InventoryContext);
-  const [selectedId, setSelectedId] = useState(null);
-  const [modalType, setModalType] = useState(null);
-  const [activeTab, setActiveTab] = useState('ALL');
+  const [selectedId, setSelectedId]   = useState(null);
+  const [modalType, setModalType]     = useState(null);
+  const [activeTab, setActiveTab]     = useState('ALL');
   const [expandedOrders, setExpandedOrders] = useState({});
 
-  const toggleExpand = (orderId, e) => {
+  const toggleExpand = (id, e) => {
     e.stopPropagation();
-    setExpandedOrders(prev => ({ ...prev, [orderId]: !prev[orderId] }));
+    setExpandedOrders(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const renderStatusBadge = (status) => {
-    switch (status) {
-      case 'COMPLETED':
-        return <span className="badge badge-success">COMPLETED</span>;
-      case 'PENDING':
-        return <span className="badge badge-warning">PENDING</span>;
-      case 'APPROVED':
-        return <span className="badge badge-info">APPROVED</span>;
-      case 'CANCELLED':
-        return <span className="badge badge-danger">CANCELLED</span>;
-      default:
-        return <span className="badge badge-muted">{status}</span>;
-    }
-  };
+  const tabs = ['ALL', 'PURCHASE', 'SALES', 'PENDING'];
 
-  const tabs = ['ALL', 'PURCHASE', 'SALES', 'PENDING APPROVAL'];
-
-  const filteredOrders = orders.filter(order => {
-    if (activeTab === 'ALL') return true;
-    if (activeTab === 'PENDING APPROVAL') return order.status === 'PENDING';
-    return order.type === activeTab;
+  const filteredOrders = orders.filter(o => {
+    if (activeTab === 'ALL')     return true;
+    if (activeTab === 'PENDING') return o.status === 'PENDING';
+    return o.type === activeTab;
   });
 
-  // Funnel calculations
-  const pendingCount = orders.filter(o => o.status === 'PENDING').length;
-  const approvedCount = orders.filter(o => o.status === 'APPROVED' || o.status === 'COMPLETED').length;
-  const totalValue = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+  const totalValue  = orders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+  const pendingCnt  = orders.filter(o => o.status === 'PENDING').length;
+  const confirmedCnt = orders.filter(o => o.status === 'APPROVED' || o.status === 'COMPLETED').length;
+
+  const doOrderAction = async (e, path, method = 'put', body, msg) => {
+    e.stopPropagation();
+    try {
+      if (method === 'put') await api.put(path, body);
+      else await api.post(path);
+      await Promise.all([fetchOrders(), fetchProducts()]);
+    } catch (err) { alert(err.message || 'Error'); }
+  };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+      {/* Page Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
         <div>
-          <h2 style={{ fontSize: '24px', fontWeight: '600', letterSpacing: '-0.3px', margin: 0 }}>ORDER LOGISTICS</h2>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '12px', marginTop: '4px' }}>
-            TOTAL VALUE TRANSACTED: ${totalValue.toLocaleString()}
+          <h1 style={{ marginBottom: '6px' }}>Orders</h1>
+          <p style={{ fontSize: '15px', color: 'var(--color-muted)' }}>
+            ${totalValue.toLocaleString()} total order value
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn-secondary" onClick={() => setModalType('PURCHASE')}>
-            NEW PURCHASE
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            className="btn-secondary"
+            style={{ height: '40px', padding: '0 18px', fontSize: '14px' }}
+            onClick={() => setModalType('PURCHASE')}
+          >
+            New purchase order
           </button>
-          <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => setModalType('SALES')}>
-            <Plus size={16} /> NEW SALES ORDER
+          <button
+            className="btn-primary"
+            style={{ height: '40px', padding: '0 18px', fontSize: '14px', gap: '6px', display: 'inline-flex', alignItems: 'center' }}
+            onClick={() => setModalType('SALES')}
+          >
+            <Plus size={14} /> New sales order
           </button>
         </div>
       </div>
 
-      {/* Funnel Pipeline Visualizer */}
+      {/* Summary Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+        {[
+          { label: 'Total orders', value: orders.length, accent: 'var(--gradient-sky)' },
+          { label: 'Pending approval', value: pendingCnt, accent: 'var(--gradient-peach)' },
+          { label: 'Confirmed / Delivered', value: confirmedCnt, accent: 'var(--gradient-mint)' },
+        ].map(s => (
+          <div key={s.label} style={{
+            backgroundColor: 'var(--color-surface-card)',
+            border: '1px solid var(--color-hairline)',
+            borderRadius: 'var(--rounded-xl)',
+            overflow: 'hidden'
+          }}>
+            <div style={{ height: '2px', background: s.accent }} />
+            <div style={{ padding: '20px 22px' }}>
+              <div style={{ fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.96px', color: 'var(--color-muted)', marginBottom: '8px' }}>
+                {s.label}
+              </div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '36px', fontWeight: '300', color: 'var(--color-ink)', letterSpacing: '-0.72px', lineHeight: 1 }}>
+                {s.value}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Pill Tab Selector */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '16px',
-        backgroundColor: 'var(--color-surface-1)',
-        padding: '20px',
-        borderRadius: '8px',
-        border: '1px solid var(--color-border)'
+        display: 'flex',
+        gap: '4px',
+        padding: '4px',
+        backgroundColor: 'var(--color-surface-soft)',
+        borderRadius: 'var(--rounded-pill)',
+        width: 'fit-content',
       }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>TOTAL ACTIVE PIPELINE</div>
-          <div style={{ fontSize: '24px', fontWeight: '700', marginTop: '4px', fontVariantNumeric: 'tabular-nums' }}>{orders.length}</div>
-        </div>
-        <div style={{ textAlign: 'center', borderLeft: '1px solid var(--color-border)' }}>
-          <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>PENDING APPROVAL</div>
-          <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--color-warning)', marginTop: '4px', fontVariantNumeric: 'tabular-nums' }}>{pendingCount}</div>
-        </div>
-        <div style={{ textAlign: 'center', borderLeft: '1px solid var(--color-border)' }}>
-          <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>CONFIRMED / DELIVERED</div>
-          <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--color-success)', marginTop: '4px', fontVariantNumeric: 'tabular-nums' }}>{approvedCount}</div>
-        </div>
-      </div>
-
-      {/* Tab bar */}
-      <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid var(--color-border)' }}>
         {tabs.map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             style={{
-              padding: '10px 16px',
+              padding: '7px 18px',
               fontSize: '13px',
               fontWeight: '500',
-              color: activeTab === tab ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-              borderBottom: activeTab === tab ? '2px solid var(--color-accent)' : '2px solid transparent',
-              marginBottom: '-1px'
+              fontFamily: 'var(--font-body)',
+              borderRadius: 'var(--rounded-pill)',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 150ms ease',
+              backgroundColor: activeTab === tab ? 'var(--color-surface-card)' : 'transparent',
+              color: activeTab === tab ? 'var(--color-ink)' : 'var(--color-muted)',
+              boxShadow: activeTab === tab ? '0 1px 4px rgba(12,10,9,0.08)' : 'none',
             }}
           >
-            {tab}
+            {tab.charAt(0) + tab.slice(1).toLowerCase()}
           </button>
         ))}
       </div>
 
+      {/* Table */}
       <div className="table-container">
         <table>
           <thead>
             <tr>
-              <th style={{ width: '40px' }}></th>
-              <th>ORDER ID</th>
-              <th>TYPE</th>
-              <th>DATE</th>
-              <th>TOTAL VALUE</th>
-              <th>STATUS</th>
+              <th style={{ width: '44px' }} />
+              <th>Order ID</th>
+              <th>Type</th>
+              <th>Date</th>
+              <th>Total value</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            {filteredOrders.map((order) => {
-              const isSelected = selectedId === order._id;
+            {filteredOrders.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '48px 20px' }}>
+                  No orders found
+                </td>
+              </tr>
+            ) : filteredOrders.map(order => {
               const isExpanded = expandedOrders[order._id];
               return (
                 <React.Fragment key={order._id}>
-                  <tr 
-                    className={isSelected ? 'selected' : ''}
-                    onClick={() => setSelectedId(isSelected ? null : order._id)}
+                  <tr
+                    onClick={() => setSelectedId(selectedId === order._id ? null : order._id)}
                     style={{ cursor: 'pointer' }}
                   >
                     <td>
-                      <button className="btn-icon" style={{ background: 'transparent' }} onClick={(e) => toggleExpand(order._id, e)}>
-                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      <button
+                        onClick={(e) => toggleExpand(order._id, e)}
+                        style={{
+                          background: 'transparent', border: 'none', cursor: 'pointer',
+                          color: 'var(--color-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          width: '28px', height: '28px', borderRadius: 'var(--rounded-sm)',
+                          transition: 'background-color 100ms'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--color-surface-soft)'}
+                        onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                       </button>
                     </td>
-                    <td style={{ color: 'var(--color-text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                    <td style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--color-muted)' }}>
                       {order._id.slice(-8).toUpperCase()}
                     </td>
                     <td>
@@ -142,106 +183,83 @@ const Orders = () => {
                         {order.type}
                       </span>
                     </td>
-                    <td style={{ color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+                    <td style={{ color: 'var(--color-muted)', fontVariantNumeric: 'tabular-nums' }}>
                       {new Date(order.createdAt).toLocaleDateString()}
                     </td>
-                    <td style={{ fontVariantNumeric: 'tabular-nums', fontWeight: '600' }}>
-                      ${order.totalAmount?.toLocaleString()}
+                    <td style={{ fontWeight: '600', fontVariantNumeric: 'tabular-nums' }}>
+                      ${(order.totalAmount || 0).toLocaleString()}
                     </td>
                     <td>{renderStatusBadge(order.status)}</td>
                   </tr>
 
-                  {/* Expandable Line Items details */}
                   {isExpanded && (
                     <tr>
-                      <td colSpan="6" style={{ padding: '0 0 0 40px', backgroundColor: 'var(--color-surface-1)' }}>
-                        <div style={{ padding: '16px 20px', borderLeft: '2px solid var(--color-accent)' }}>
-                          <h4 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--color-text-secondary)', marginBottom: '12px' }}>
-                            ORDER LINE ITEMS DETAILED LEDGER
-                          </h4>
+                      <td colSpan={6} style={{ padding: 0, backgroundColor: 'var(--color-canvas)' }}>
+                        <div style={{
+                          margin: '0 0 0 44px',
+                          padding: '20px 24px',
+                          borderLeft: '2px solid var(--color-hairline)',
+                          backgroundColor: 'var(--color-surface-soft)',
+                        }}>
+                          <div style={{ fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.96px', color: 'var(--color-muted)', marginBottom: '14px' }}>
+                            Line items
+                          </div>
+
                           {order.items && order.items.length > 0 ? (
                             <>
-                              <table style={{ width: '100%' }}>
+                              <table style={{ width: '100%', marginBottom: '16px' }}>
                                 <thead>
-                                  <tr style={{ background: 'transparent', height: '32px' }}>
-                                    <th style={{ padding: '6px 12px', fontSize: '10px' }}>PRODUCT ID</th>
-                                    <th style={{ padding: '6px 12px', fontSize: '10px' }}>QUANTITY</th>
-                                    <th style={{ padding: '6px 12px', fontSize: '10px' }}>UNIT PRICE</th>
+                                  <tr style={{ backgroundColor: 'transparent' }}>
+                                    <th style={{ padding: '6px 12px', fontSize: '11px' }}>Product ID</th>
+                                    <th style={{ padding: '6px 12px', fontSize: '11px' }}>Quantity</th>
+                                    <th style={{ padding: '6px 12px', fontSize: '11px' }}>Unit price</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {order.items.map((item, idx) => (
-                                    <tr key={idx} style={{ height: '36px', background: 'transparent' }}>
-                                      <td style={{ padding: '6px 12px', color: 'var(--color-text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-                                        {item.product?._id ? item.product._id.slice(-8).toUpperCase() : (item.product || '').slice(-8).toUpperCase()}
+                                    <tr key={idx} style={{ backgroundColor: 'transparent' }}>
+                                      <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '12px' }}>
+                                        {(item.product?._id || item.product || '').slice(-8).toUpperCase()}
                                       </td>
-                                      <td style={{ padding: '6px 12px', fontVariantNumeric: 'tabular-nums' }}>{item.quantity}</td>
-                                      <td style={{ padding: '6px 12px', fontVariantNumeric: 'tabular-nums' }}>${item.price || item.priceAtTime}</td>
+                                      <td style={{ padding: '8px 12px', fontVariantNumeric: 'tabular-nums' }}>{item.quantity}</td>
+                                      <td style={{ padding: '8px 12px', fontVariantNumeric: 'tabular-nums' }}>${item.price || item.priceAtTime}</td>
                                     </tr>
                                   ))}
                                 </tbody>
                               </table>
 
-                              {/* Order Action Buttons */}
-                              <div style={{ display: 'flex', gap: '8px', marginTop: '16px', borderTop: '1px solid var(--color-border)', paddingTop: '12px' }}>
+                              <div style={{ display: 'flex', gap: '8px', paddingTop: '12px', borderTop: '1px solid var(--color-hairline)' }}>
                                 {order.status === 'PENDING' && (
                                   <>
-                                    <button 
-                                      className="btn-primary" 
-                                      style={{ padding: '8px 16px', fontSize: '12px', backgroundColor: '#10B981', color: 'white', borderRadius: '4px' }}
-                                      onClick={async (e) => {
-                                        e.stopPropagation();
-                                        try {
-                                          await api.put(`/orders/${order._id}`, { status: 'APPROVED' });
-                                          alert('Order approved!');
-                                          await Promise.all([fetchOrders(), fetchProducts()]);
-                                        } catch (err) {
-                                          alert(err.message || 'Error approving order');
-                                        }
-                                      }}
+                                    <button
+                                      className="btn-primary"
+                                      style={{ height: '34px', padding: '0 14px', fontSize: '13px', gap: '5px', display: 'inline-flex', alignItems: 'center', backgroundColor: '#15803d' }}
+                                      onClick={e => doOrderAction(e, `/orders/${order._id}`, 'put', { status: 'APPROVED' })}
                                     >
-                                      APPROVE ORDER
+                                      <Check size={13} /> Approve
                                     </button>
-                                    <button 
-                                      className="btn-secondary" 
-                                      style={{ padding: '8px 16px', fontSize: '12px', backgroundColor: '#EF4444', color: 'white', border: 'none', borderRadius: '4px' }}
-                                      onClick={async (e) => {
-                                        e.stopPropagation();
-                                        try {
-                                          await api.post(`/orders/${order._id}/cancel`);
-                                          alert('Order cancelled!');
-                                          await Promise.all([fetchOrders(), fetchProducts()]);
-                                        } catch (err) {
-                                          alert(err.message || 'Error cancelling order');
-                                        }
-                                      }}
+                                    <button
+                                      className="btn-secondary"
+                                      style={{ height: '34px', padding: '0 14px', fontSize: '13px', gap: '5px', display: 'inline-flex', alignItems: 'center', color: 'var(--color-danger)', borderColor: 'var(--color-danger-border)' }}
+                                      onClick={e => doOrderAction(e, `/orders/${order._id}/cancel`, 'post')}
                                     >
-                                      CANCEL ORDER
+                                      <X size={13} /> Cancel
                                     </button>
                                   </>
                                 )}
                                 {order.status === 'APPROVED' && (
-                                  <button 
-                                    className="btn-primary" 
-                                    style={{ padding: '8px 16px', fontSize: '12px', backgroundColor: '#3B82F6', color: 'white', borderRadius: '4px' }}
-                                    onClick={async (e) => {
-                                      e.stopPropagation();
-                                      try {
-                                        await api.put(`/orders/${order._id}`, { status: 'COMPLETED' });
-                                        alert('Order completed!');
-                                        await Promise.all([fetchOrders(), fetchProducts()]);
-                                      } catch (err) {
-                                        alert(err.message || 'Error completing order');
-                                      }
-                                    }}
+                                  <button
+                                    className="btn-primary"
+                                    style={{ height: '34px', padding: '0 14px', fontSize: '13px', gap: '5px', display: 'inline-flex', alignItems: 'center' }}
+                                    onClick={e => doOrderAction(e, `/orders/${order._id}`, 'put', { status: 'COMPLETED' })}
                                   >
-                                    COMPLETE ORDER
+                                    <Check size={13} /> Mark Complete
                                   </button>
                                 )}
                               </div>
                             </>
                           ) : (
-                            <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>No custom item records loaded.</div>
+                            <p style={{ fontSize: '14px', color: 'var(--color-muted)' }}>No line items found</p>
                           )}
                         </div>
                       </td>
@@ -253,11 +271,11 @@ const Orders = () => {
           </tbody>
         </table>
       </div>
-      
-      <CreateOrderModal 
-        isOpen={!!modalType} 
-        type={modalType} 
-        onClose={() => setModalType(null)} 
+
+      <CreateOrderModal
+        isOpen={!!modalType}
+        type={modalType}
+        onClose={() => setModalType(null)}
       />
     </div>
   );

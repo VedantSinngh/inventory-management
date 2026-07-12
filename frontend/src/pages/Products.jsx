@@ -3,7 +3,7 @@ import { InventoryContext } from '../context/InventoryContext';
 import { AuthContext } from '../context/AuthContext';
 import EditModal from '../components/EditModal';
 import api from '../services/api';
-import { Barcode, Edit, Plus, Trash, Check } from 'lucide-react';
+import { Barcode, Edit, Plus } from 'lucide-react';
 
 const Products = () => {
   const { products, fetchProducts } = useContext(InventoryContext);
@@ -33,17 +33,10 @@ const Products = () => {
       warehouse: data.warehouse || undefined,
       supplier: data.supplier?.trim() || undefined
     };
-
-    if (isEdit) {
-      delete payload.stock;
-    }
-
-    Object.keys(payload).forEach((key) => {
-      if (payload[key] === undefined || payload[key] === '') {
-        delete payload[key];
-      }
+    if (isEdit) delete payload.stock;
+    Object.keys(payload).forEach(key => {
+      if (payload[key] === undefined || payload[key] === '') delete payload[key];
     });
-
     return payload;
   };
 
@@ -57,154 +50,182 @@ const Products = () => {
       }
       setIsModalOpen(false);
       fetchProducts();
-    } catch (e) {
-      console.error('Error saving product:', e);
-    }
+    } catch (e) { console.error('Error saving product:', e); }
   };
 
   const openNew = () => { setEditingProduct(null); setIsModalOpen(true); };
   const openEdit = (product) => { setEditingProduct(product); setIsModalOpen(true); };
-
   const selectedProduct = products.find(p => p._id === selectedId);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', position: 'relative' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '20px', flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+      {/* Page Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px', flexWrap: 'wrap' }}>
         <div>
-          <h2 style={{ fontSize: '24px', fontWeight: '600', letterSpacing: '-0.3px', margin: 0 }}>PRODUCT REGISTRY</h2>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '12px', marginTop: '4px' }}>
-            TOTAL REGISTERED: {products.length} SKUS
+          <h1 style={{ marginBottom: '6px' }}>Products</h1>
+          <p style={{ fontSize: '15px', color: 'var(--color-muted)' }}>
+            {products.length.toLocaleString()} SKUs in catalog
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-           <input 
-             placeholder="Search sku or name..." 
-             value={searchTerm} 
-             onChange={e => setSearchTerm(e.target.value)} 
-             style={{ width: '220px' }}
-           />
-           <select 
-             value={filterCategory} 
-             onChange={e => setFilterCategory(e.target.value)} 
-             style={{ width: '160px' }}
-           >
-             <option value="">ALL CATEGORIES</option>
-             {categories.map(c => <option key={c} value={c}>{c.toUpperCase()}</option>)}
-           </select>
-           <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={openNew}>
-             <Plus size={16} /> ADD PRODUCT
-           </button>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            placeholder="Search name or SKU…"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            style={{ width: '220px', height: '40px' }}
+          />
+          <select
+            value={filterCategory}
+            onChange={e => setFilterCategory(e.target.value)}
+            style={{ width: '180px', height: '40px' }}
+          >
+            <option value="">All categories</option>
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <button
+            className="btn-primary"
+            style={{ height: '40px', gap: '6px', display: 'inline-flex', alignItems: 'center' }}
+            onClick={openNew}
+          >
+            <Plus size={15} /> Add product
+          </button>
         </div>
       </div>
 
+      {/* Table */}
       <div className="table-container">
         <table>
           <thead>
             <tr>
               <th>ID</th>
-              <th>PRODUCT NAME</th>
+              <th>Product name</th>
               <th>SKU</th>
-              <th>CATEGORY</th>
-              <th>STOCK</th>
-              <th>STATUS</th>
-              <th style={{ textAlign: 'right' }}>ACTIONS</th>
+              <th>Category</th>
+              <th>Stock</th>
+              <th>Status</th>
+              <th style={{ textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredProducts.map((product) => {
-              const isLowStock = product.stock <= (product.lowStockThreshold || 10);
-              const isSelected = selectedId === product._id;
-              return (
-              <tr 
-                key={product._id} 
-                className={isSelected ? 'selected' : ''}
-                onClick={() => setSelectedId(isSelected ? null : product._id)}
-                style={{ cursor: 'pointer' }}
-              >
-                <td style={{ color: 'var(--color-text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>
-                  {product._id.slice(-5).toUpperCase()}
-                </td>
-                <td style={{ color: 'var(--color-text-primary)', fontWeight: '500' }}>
-                  {product.name}
-                </td>
-                <td style={{ fontVariantNumeric: 'tabular-nums' }}>{product.sku}</td>
-                <td>{product.category?.toUpperCase()}</td>
-                <td style={{ fontVariantNumeric: 'tabular-nums', fontWeight: '600' }}>{product.stock}</td>
-                <td>
-                  {isLowStock ? (
-                    <span className="badge badge-danger">LOW STOCK</span>
-                  ) : (
-                    <span className="badge badge-success">IN STOCK</span>
-                  )}
-                </td>
-                <td style={{ textAlign: 'right' }}>
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                    <button 
-                      className="btn-icon" 
-                      onClick={(e) => { e.stopPropagation(); window.open(`/api/products/${product.sku}/barcode`, '_blank'); }}
-                      title="Barcode view"
-                    >
-                      <Barcode size={14} />
-                    </button>
-                    <button 
-                      className="btn-icon" 
-                      onClick={(e) => { e.stopPropagation(); openEdit(product); }}
-                      title="Edit item"
-                    >
-                      <Edit size={14} />
-                    </button>
-                  </div>
+            {filteredProducts.length === 0 ? (
+              <tr>
+                <td colSpan={7} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: '48px 20px' }}>
+                  No products found
                 </td>
               </tr>
-            )})}
+            ) : filteredProducts.map((product) => {
+              const isLowStock = product.stock <= (product.lowStockThreshold || 10);
+              const isOutOfStock = product.stock === 0;
+              const isSelected = selectedId === product._id;
+              return (
+                <tr
+                  key={product._id}
+                  onClick={() => setSelectedId(isSelected ? null : product._id)}
+                  style={{
+                    cursor: 'pointer',
+                    backgroundColor: isSelected ? 'var(--color-surface-soft)' : undefined
+                  }}
+                >
+                  <td style={{ color: 'var(--color-muted)', fontFamily: 'monospace', fontSize: '12px' }}>
+                    {product._id.slice(-5).toUpperCase()}
+                  </td>
+                  <td style={{ fontWeight: '500', color: 'var(--color-ink)' }}>{product.name}</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: '13px' }}>{product.sku}</td>
+                  <td>{product.category}</td>
+                  <td style={{ fontWeight: '600', fontVariantNumeric: 'tabular-nums' }}>{product.stock}</td>
+                  <td>
+                    {isOutOfStock ? (
+                      <span className="badge badge-danger">Out of stock</span>
+                    ) : isLowStock ? (
+                      <span className="badge badge-warning">Low stock</span>
+                    ) : (
+                      <span className="badge badge-success">In stock</span>
+                    )}
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); window.open(`/api/products/${product.sku}/barcode`, '_blank'); }}
+                        title="Barcode"
+                        style={{
+                          width: '32px', height: '32px', borderRadius: 'var(--rounded-md)',
+                          border: '1px solid var(--color-hairline)', background: 'transparent',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: 'var(--color-muted)', cursor: 'pointer', transition: 'all 150ms'
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--color-surface-soft)'; e.currentTarget.style.color = 'var(--color-ink)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--color-muted)'; }}
+                      >
+                        <Barcode size={14} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openEdit(product); }}
+                        title="Edit"
+                        style={{
+                          width: '32px', height: '32px', borderRadius: 'var(--rounded-md)',
+                          border: '1px solid var(--color-hairline)', background: 'transparent',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: 'var(--color-muted)', cursor: 'pointer', transition: 'all 150ms'
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--color-surface-soft)'; e.currentTarget.style.color = 'var(--color-ink)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--color-muted)'; }}
+                      >
+                        <Edit size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      {/* Floating Bulk Action Bar */}
+      {/* Floating Action Bar */}
       {selectedId && selectedProduct && (
         <div style={{
           position: 'fixed',
-          bottom: '24px',
+          bottom: '28px',
           left: '50%',
           transform: 'translateX(-50%)',
-          backgroundColor: 'var(--color-surface-elevated)',
-          border: '1px solid var(--color-m-red)',
-          borderRadius: 'var(--rounded-none)',
-          padding: '16px 32px',
+          backgroundColor: 'var(--color-surface-card)',
+          border: '1px solid var(--color-hairline)',
+          borderRadius: 'var(--rounded-pill)',
+          padding: '10px 20px',
           display: 'flex',
           alignItems: 'center',
-          gap: '24px',
+          gap: '20px',
           zIndex: 1000,
-          boxShadow: 'none'
+          boxShadow: '0 8px 32px rgba(12, 10, 9, 0.12)',
+          backdropFilter: 'blur(12px)'
         }}>
-          <div style={{ fontSize: '13px', color: 'var(--color-on-dark)' }}>
-            Selected SKU: <strong style={{ color: 'var(--color-m-red)' }}>{selectedProduct.sku}</strong> ({selectedProduct.name})
-          </div>
+          <span style={{ fontSize: '14px', color: 'var(--color-body)' }}>
+            Selected: <strong style={{ color: 'var(--color-ink)', fontWeight: '600' }}>{selectedProduct.name}</strong>
+          </span>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button 
-              className="btn-primary" 
-              style={{ height: '30px', padding: '0 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+            <button
+              className="btn-primary"
+              style={{ height: '32px', padding: '0 14px', fontSize: '13px', gap: '5px', display: 'flex', alignItems: 'center' }}
               onClick={() => openEdit(selectedProduct)}
             >
-              <Edit size={12} /> Edit Item
+              <Edit size={13} /> Edit
             </button>
-            <button 
-              className="btn-secondary" 
-              style={{ height: '30px', padding: '0 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+            <button
+              className="btn-secondary"
+              style={{ height: '32px', padding: '0 14px', fontSize: '13px', gap: '5px', display: 'flex', alignItems: 'center' }}
               onClick={() => window.open(`/api/products/${selectedProduct.sku}/barcode`, '_blank')}
             >
-              <Barcode size={12} /> Barcode
+              <Barcode size={13} /> Barcode
             </button>
           </div>
         </div>
       )}
 
-      <EditModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onSave={handleSave} 
-        product={editingProduct} 
+      <EditModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSave}
+        product={editingProduct}
       />
     </div>
   );

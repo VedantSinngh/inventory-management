@@ -1,21 +1,10 @@
 import React from 'react';
 
-/**
- * Loading Spinner Component
- * Shows loading state with optional text
- */
-const Spinner = ({ 
-  size = 'medium', 
-  text = 'Loading...', 
-  fullScreen = false 
-}) => {
-  const sizeMap = {
-    small: { spinner: '24px', dot: '6px' },
-    medium: { spinner: '40px', dot: '8px' },
-    large: { spinner: '60px', dot: '12px' }
-  };
-
-  const config = sizeMap[size];
+const Spinner = ({ size = 'medium', text = 'Loading…', fullScreen = false }) => {
+  const sizePx = { small: 24, medium: 40, large: 60 };
+  const borderPx = { small: 3, medium: 4, large: 5 };
+  const px = sizePx[size];
+  const bpx = borderPx[size];
 
   const containerStyle = {
     display: 'flex',
@@ -25,11 +14,10 @@ const Spinner = ({
     gap: '16px',
     ...(fullScreen && {
       position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100%',
-      height: '100%',
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      top: 0, left: 0,
+      width: '100%', height: '100%',
+      backgroundColor: 'rgba(245, 245, 245, 0.7)',
+      backdropFilter: 'blur(4px)',
       zIndex: 9998
     })
   };
@@ -37,25 +25,26 @@ const Spinner = ({
   return (
     <div style={containerStyle}>
       <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
+        @keyframes el-spin {
+          to { transform: rotate(360deg); }
         }
-        .spinner-ring {
-          border: ${config.dot} solid rgba(0, 0, 0, 0.1);
-          border-top: ${config.dot} solid #1976d2;
+        .el-spinner-ring {
+          width: ${px}px;
+          height: ${px}px;
           border-radius: 50%;
-          width: ${config.spinner};
-          height: ${config.spinner};
-          animation: spin 1s linear infinite;
+          border: ${bpx}px solid var(--color-hairline-strong);
+          border-top-color: var(--color-ink);
+          animation: el-spin 0.8s linear infinite;
         }
       `}</style>
-      <div className="spinner-ring" />
+      <div className="el-spinner-ring" />
       {text && (
         <p style={{
           margin: 0,
-          fontSize: size === 'small' ? '12px' : size === 'medium' ? '14px' : '16px',
-          color: fullScreen ? 'white' : '#666'
+          fontFamily: 'var(--font-body)',
+          fontSize: size === 'small' ? '12px' : '14px',
+          color: 'var(--color-muted)',
+          letterSpacing: '0.15px'
         }}>
           {text}
         </p>

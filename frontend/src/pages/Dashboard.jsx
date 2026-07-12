@@ -1,109 +1,78 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { InventoryContext } from '../context/InventoryContext';
-import { Download, AlertCircle, TrendingUp, Package, Truck, AlertTriangle, Clock, Zap, Upload, Layout } from 'lucide-react';
+import { Download, Upload, AlertCircle } from 'lucide-react';
 import SimpleInventoryChart from '../components/SimpleInventoryChart';
 import SimpleCategoryBreakdown from '../components/SimpleCategoryBreakdown';
 import SimpleSalesOverview from '../components/SimpleSalesOverview';
 
 const exportCSV = (data, filename) => {
-  const headers = Object.keys(data[0] || {}).join(',');
-  const rows = data.map(row => Object.values(row).join(',')).join('\n');
+  if (!data || !data.length) return;
+  const headers = Object.keys(data[0]).join(',');
+  const rows = data.map(row => Object.values(row).map(v => `"${v}"`).join(',')).join('\n');
   const blob = new Blob([headers + '\n' + rows], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
+  a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 };
 
 const Dashboard = () => {
   const { products, orders, api } = useContext(InventoryContext);
   const [advancedMetrics, setAdvancedMetrics] = useState({
-    shipments: { total: 0, inTransit: 0, delivered: 0 },
-    batches: { total: 0, expiringSoon: 0, expired: 0 },
-    alerts: { total: 0, critical: 0, active: 0 },
-    forecasts: { total: 0, approved: 0 }
+    batches: { total: 0, expiringSoon: 0 },
+    alerts:  { active: 0, critical: 0 },
   });
-  const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
 
   useEffect(() => {
-    fetchAdvancedMetrics();
+    (async () => {
+      try {
+        const [batchRes, alertRes] = await Promise.all([
+          api.get('/batches/analytics/overview').catch(() => ({})),
+          api.get('/alerts/analytics/overview').catch(() => ({})),
+        ]);
+        setAdvancedMetrics({
+          batches: batchRes.data || batchRes || {},
+          alerts:  alertRes.data  || alertRes  || {},
+        });
+      } catch (e) { /* silent */ }
+    })();
   }, []);
 
-  const fetchAdvancedMetrics = async () => {
-    try {
-      const [shipmentsRes, batchesRes, alertsRes, forecastsRes] = await Promise.all([
-        api.get('/shipments?limit=1').catch(() => ({ data: { pagination: { total: 0 }, shipments: [] } })),
-        api.get('/batches/analytics/overview').catch(() => ({})),
-        api.get('/alerts/analytics/overview').catch(() => ({})),
-        api.get('/forecasts/analytics/overview').catch(() => ({}))
-      ]);
+  const lowStock    = products.filter(p => p.stock <= (p.lowStockThreshold || 10));
+  const outOfStock  = products.filter(p => p.stock === 0);
+  const totalValue  = products.reduce((s, p) => s + ((p.price || 0) * (p.stock || 0)), 0);
+  const pendingOrd  = orders.filter(o => o.status === 'PENDING').length;
 
-      setAdvancedMetrics({
-        shipments: {
-          total: shipmentsRes.data?.pagination?.total || 0,
-          inTransit: shipmentsRes.data?.shipments?.filter(s => s.status === 'IN_TRANSIT').length || 0,
-          delivered: shipmentsRes.data?.shipments?.filter(s => s.status === 'DELIVERED').length || 0
-        },
-        batches: batchesRes.data || batches || { total: 0, expiringSoon: 0, expired: 0 },
-        alerts: alertsRes.data || { total: 0, critical: 0, active: 0 },
-        forecasts: forecastsRes.data || { total: 0, approved: 0 }
-      });
-    } catch (error) {
-      console.error('Error fetching advanced metrics:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const lowStockProducts = products.filter(p => p.stock <= (p.lowStockThreshold || 10));
-  const outOfStockProducts = products.filter(p => p.stock === 0);
-  const totalInventoryValue = products.reduce((sum, p) => sum + ((p.price || 0) * (p.stock || 0)), 0);
-  const pendingOrders = orders.filter(o => o.status === 'PENDING').length;
-
-  const reorderItems = lowStockProducts.map(p => ({
-    productId: p._id || p.id,
+  const reorderItems = lowStock.map(p => ({
+    id: p._id || p.id,
     name: p.name,
-    currentStock: p.stock,
-    suggestedReorder: Math.max((p.lowStockThreshold || 10) * 2 - p.stock, 1),
+    stock: p.stock,
+    suggest: Math.max((p.lowStockThreshold || 10) * 2 - p.stock, 1),
   }));
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     setImporting(true);
     const reader = new FileReader();
-    reader.onload = async (event) => {
+    reader.onload = async (ev) => {
       try {
-        const text = event.target.result;
-        const lines = text.split('\n').map(l => l.trim()).filter(l => l);
-        if (lines.length < 2) throw new Error("CSV must have a header and at least one data row");
-        
+        const lines = ev.target.result.split('\n').map(l => l.trim()).filter(Boolean);
         const headers = lines[0].split(',');
         const data = lines.slice(1).map(line => {
-          const values = line.split(',');
+          const vals = line.split(',');
           const obj = {};
-          headers.forEach((header, index) => {
-            obj[header.trim()] = values[index] ? values[index].trim() : '';
-          });
+          headers.forEach((h, i) => { obj[h.trim()] = vals[i]?.trim() || ''; });
           return obj;
         });
-
-        const confirmWipe = window.confirm("WARNING: This will wipe your existing database to import the new data. Continue?");
-        if (!confirmWipe) {
-          setImporting(false);
-          return;
-        }
-
+        const ok = window.confirm('This will replace your existing data. Continue?');
+        if (!ok) { setImporting(false); return; }
         await api.post('/import', { data, wipeDatabase: true });
-        alert('Import successful! Reloading dashboard...');
+        alert('Import successful!');
         window.location.reload();
-      } catch (error) {
-        console.error("Import error", error);
-        alert("Failed to import: " + error.message);
+      } catch (err) {
+        alert('Import failed: ' + err.message);
         setImporting(false);
       }
     };
@@ -111,263 +80,223 @@ const Dashboard = () => {
     e.target.value = null;
   };
 
-  const StatItem = ({ label, value, subtext, gradient, glowColor }) => (
-    <div 
-      className="dashboard-stat-card"
-      style={{
-        padding: '24px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-        backgroundColor: 'var(--color-canvas)',
-        borderRadius: '16px',
-        border: '1px solid var(--color-hairline)',
-        boxShadow: `0 4px 20px rgba(0, 0, 0, 0.02)`,
-        position: 'relative',
-        overflow: 'hidden',
-        transition: 'all 250ms cubic-bezier(0.16, 1, 0.3, 1)',
-        cursor: 'default'
-      }}
-    >
-      {/* Top Border Glow Accent */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: '4px',
-        background: gradient
-      }} />
-
-      <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--color-muted)', fontWeight: '700' }}>
-        {label}
-      </span>
-      <span style={{ fontSize: '32px', fontWeight: '800', color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1, letterSpacing: '-0.5px' }}>
-        {value}
-      </span>
-      {subtext && (
-        <span style={{ fontSize: '12px', color: 'var(--color-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: glowColor, display: 'inline-block' }} />
-          {subtext}
-        </span>
-      )}
-    </div>
-  );
+  const stats = [
+    {
+      label: 'Total SKUs',
+      value: products.length.toLocaleString(),
+      sub: 'Catalog records',
+      accent: 'linear-gradient(90deg, var(--gradient-sky), var(--gradient-mint))',
+    },
+    {
+      label: 'Inventory Value',
+      value: `$${Math.round(totalValue).toLocaleString()}`,
+      sub: 'Asset valuation',
+      accent: 'linear-gradient(90deg, var(--gradient-lavender), var(--gradient-sky))',
+    },
+    {
+      label: 'Understocked',
+      value: lowStock.length,
+      sub: lowStock.length === 0 ? 'All quantities safe' : 'Below safety threshold',
+      accent: lowStock.length > 0
+        ? 'linear-gradient(90deg, #fca5a5, var(--gradient-peach))'
+        : 'linear-gradient(90deg, var(--gradient-mint), var(--gradient-sky))',
+    },
+    {
+      label: 'Pending Orders',
+      value: pendingOrd,
+      sub: 'Awaiting verification',
+      accent: 'linear-gradient(90deg, var(--gradient-peach), var(--gradient-rose))',
+    },
+  ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-      {/* Title Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '48px', position: 'relative' }}>
+
+      {/* Page header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '800', letterSpacing: '-0.8px', margin: 0, color: 'var(--color-ink)' }}>Overview</h1>
-          <p style={{ fontSize: '13.5px', color: 'var(--color-muted)', marginTop: '4px' }}>Real-time inventory ledger and operational velocity metrics</p>
+          <h1 style={{ marginBottom: '6px' }}>Overview</h1>
+          <p style={{ fontSize: '15px', color: 'var(--color-muted)', letterSpacing: '0.15px' }}>
+            Real-time inventory ledger and operational velocity metrics
+          </p>
         </div>
-        
-        {/* Header Actions */}
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button
             onClick={() => document.getElementById('csvUpload').click()}
-            style={{
-              padding: '10px 18px',
-              fontSize: '13px',
-              fontWeight: '600',
-              backgroundColor: 'var(--color-canvas)',
-              color: 'var(--color-ink)',
-              border: '1px solid var(--color-hairline)',
-              borderRadius: '10px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 150ms'
-            }}
+            className="btn-secondary"
             disabled={importing}
-            className="action-btn"
+            style={{ height: '38px', padding: '0 18px', fontSize: '14px', gap: '6px', display: 'flex', alignItems: 'center' }}
           >
-            <Upload size={14} /> {importing ? 'Importing...' : 'Import CSV'}
+            <Upload size={14} /> {importing ? 'Importing…' : 'Import CSV'}
           </button>
-          <input 
-            type="file" 
-            id="csvUpload" 
-            accept=".csv" 
-            style={{ display: 'none' }} 
-            onChange={handleFileUpload} 
-          />
+          <input type="file" id="csvUpload" accept=".csv" style={{ display: 'none' }} onChange={handleFileUpload} />
           <button
-            onClick={() => exportCSV(products, 'inventory_export.csv')}
-            style={{
-              padding: '10px 18px',
-              fontSize: '13px',
-              fontWeight: '600',
-              backgroundColor: 'var(--color-canvas)',
-              color: 'var(--color-ink)',
-              border: '1px solid var(--color-hairline)',
-              borderRadius: '10px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 150ms'
-            }}
-            className="action-btn"
+            onClick={() => exportCSV(products, 'inventory.csv')}
+            className="btn-secondary"
+            style={{ height: '38px', padding: '0 18px', fontSize: '14px', gap: '6px', display: 'flex', alignItems: 'center' }}
           >
             <Download size={14} /> Export CSV
           </button>
         </div>
       </div>
 
-      {/* Critical Alert Bar */}
-      {(outOfStockProducts.length > 0 || lowStockProducts.length > 0 || advancedMetrics.alerts.critical > 0) && (
+      {/* Critical alert banner */}
+      {(outOfStock.length > 0 || advancedMetrics.alerts?.critical > 0) && (
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '12px',
-          padding: '14px 20px',
-          backgroundColor: 'rgba(217, 45, 32, 0.04)',
-          border: '1px solid rgba(217, 45, 32, 0.08)',
-          borderRadius: '12px',
+          gap: '10px',
+          padding: '13px 18px',
+          backgroundColor: '#fff7f7',
+          border: '1px solid var(--color-danger-border)',
+          borderRadius: 'var(--rounded-lg)',
           color: 'var(--color-danger)',
-          fontSize: '13.5px',
-          fontWeight: '600',
-          boxShadow: '0 2px 10px rgba(217, 45, 32, 0.02)'
+          fontSize: '14px',
+          fontWeight: '500',
         }}>
-          <AlertCircle size={16} />
-          <span>
-            {outOfStockProducts.length > 0 && `${outOfStockProducts.length} items out of stock. `}
-            {lowStockProducts.length > 0 && `${lowStockProducts.length} items below safety threshold. `}
-            {advancedMetrics.alerts.critical > 0 && `${advancedMetrics.alerts.critical} unresolved critical issues.`}
-          </span>
+          <AlertCircle size={15} />
+          {outOfStock.length > 0 && `${outOfStock.length} SKU${outOfStock.length > 1 ? 's' : ''} out of stock. `}
+          {advancedMetrics.alerts?.critical > 0 && `${advancedMetrics.alerts.critical} unresolved critical alert${advancedMetrics.alerts.critical > 1 ? 's' : ''}.`}
         </div>
       )}
 
-      {/* Minimalist KPI Banner */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '20px'
-      }}>
-        <StatItem 
-          label="Total SKU Count" 
-          value={products.length} 
-          subtext="Unique catalog records" 
-          gradient="linear-gradient(90deg, #3b82f6, #60a5fa)"
-          glowColor="#3b82f6"
-        />
-        <StatItem 
-          label="Inventory Value" 
-          value={`$${(totalInventoryValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}`} 
-          subtext="Asset valuation" 
-          gradient="linear-gradient(90deg, #6366f1, #818cf8)"
-          glowColor="#6366f1"
-        />
-        <StatItem 
-          label="Understocked" 
-          value={lowStockProducts.length} 
-          subtext="Procurement priority" 
-          gradient="linear-gradient(90deg, #f59e0b, #fbbf24)"
-          glowColor={lowStockProducts.length > 0 ? 'var(--color-danger)' : '#f59e0b'}
-        />
-        <StatItem 
-          label="Pending Orders" 
-          value={pendingOrders} 
-          subtext="Awaiting verification" 
-          gradient="linear-gradient(90deg, #10b981, #34d399)"
-          glowColor="#10b981"
-        />
+      {/* KPI Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+        {stats.map(s => (
+          <div
+            key={s.label}
+            style={{
+              backgroundColor: 'var(--color-surface-card)',
+              border: '1px solid var(--color-hairline)',
+              borderRadius: 'var(--rounded-xl)',
+              overflow: 'hidden',
+              transition: 'box-shadow 200ms ease, transform 200ms ease',
+              cursor: 'default',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 24px rgba(12,10,9,0.06)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}
+          >
+            {/* Gradient accent bar */}
+            <div style={{ height: '3px', background: s.accent }} />
+            <div style={{ padding: '22px 24px' }}>
+              <div style={{
+                fontSize: '11px',
+                fontWeight: '600',
+                textTransform: 'uppercase',
+                letterSpacing: '0.96px',
+                color: 'var(--color-muted)',
+                fontFamily: 'var(--font-body)',
+                marginBottom: '10px'
+              }}>
+                {s.label}
+              </div>
+              <div style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '40px',
+                fontWeight: '300',
+                lineHeight: 1.05,
+                letterSpacing: '-0.96px',
+                color: 'var(--color-ink)',
+                marginBottom: '6px'
+              }}>
+                {s.value}
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--color-muted)', letterSpacing: '0.15px' }}>
+                {s.sub}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Primary Analytics Section */}
+      {/* Main analytics grid */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: '2fr 1fr',
         gap: '24px',
-        alignItems: 'start'
-      }} className="main-dashboard-grid">
-        
-        {/* Left Column: Trend Charts and Ledgers */}
+        alignItems: 'start',
+      }}>
+        {/* Left: charts */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <SimpleInventoryChart products={products} />
-          
           <SimpleSalesOverview orders={orders} />
         </div>
 
-        {/* Right Column: Category & Reorders */}
+        {/* Right: breakdown + reorders */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <SimpleCategoryBreakdown products={products} />
 
-          {/* Reorders Card */}
-          <div className="card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--color-hairline)', boxShadow: '0 4px 20px rgba(0,0,0,0.01)' }}>
-            <h3 style={{ fontSize: '13px', fontWeight: '700', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--color-ink)' }}>
+          <div style={{
+            backgroundColor: 'var(--color-surface-card)',
+            border: '1px solid var(--color-hairline)',
+            borderRadius: 'var(--rounded-xl)',
+            padding: '24px',
+          }}>
+            <div style={{
+              fontSize: '11px',
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '0.96px',
+              color: 'var(--color-muted)',
+              marginBottom: '20px',
+              fontFamily: 'var(--font-body)',
+            }}>
               Reorder Queue
-            </h3>
-            
+            </div>
+
             {reorderItems.length === 0 ? (
-              <p style={{ color: 'var(--color-muted)', fontSize: '13.5px', textAlign: 'center', padding: '32px 0' }}>
-                All inventory quantities are currently above safety stock thresholds.
+              <p style={{ color: 'var(--color-muted-soft)', fontSize: '14px', textAlign: 'center', padding: '24px 0' }}>
+                All quantities above safety stock
               </p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {reorderItems.slice(0, 4).map(item => (
-                  <div key={item.productId} style={{
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {reorderItems.slice(0, 5).map(item => (
+                  <div key={item.id} style={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    padding: '12px 14px',
+                    padding: '11px 14px',
+                    backgroundColor: 'var(--color-canvas)',
                     border: '1px solid var(--color-hairline)',
-                    backgroundColor: 'var(--color-surface-soft)',
-                    borderRadius: '10px',
-                    transition: 'transform 150ms'
-                  }} className="reorder-item-row">
-                    <div style={{ display: 'flex', flexDirection: 'column', maxWidth: '70%' }}>
-                      <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--color-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    borderRadius: 'var(--rounded-lg)',
+                    transition: 'border-color 150ms',
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--color-ink)', marginBottom: '2px' }}>
                         {item.name}
-                      </span>
-                      <span style={{ fontSize: '11px', color: 'var(--color-muted)', marginTop: '2px' }}>
-                        Stock Level: <strong style={{ color: 'var(--color-danger)' }}>{item.currentStock} units</strong>
-                      </span>
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--color-muted)' }}>
+                        {item.stock} units in stock
+                      </div>
                     </div>
-                    <span style={{ 
-                      fontSize: '12px', 
-                      fontWeight: '700', 
+                    <span style={{
+                      fontSize: '12px',
+                      fontWeight: '600',
                       color: '#9a3412',
                       backgroundColor: '#ffedd5',
-                      padding: '4px 8px',
-                      borderRadius: '6px'
+                      padding: '3px 10px',
+                      borderRadius: 'var(--rounded-pill)',
+                      letterSpacing: '0.2px',
+                      whiteSpace: 'nowrap'
                     }}>
-                      +{item.suggestedReorder} Qty
+                      +{item.suggest}
                     </span>
                   </div>
                 ))}
-                
-                {reorderItems.length > 4 && (
-                  <div style={{ fontSize: '11px', color: 'var(--color-muted)', textAlign: 'center', marginTop: '8px', fontWeight: '500' }}>
-                    + {reorderItems.length - 4} more SKUs require reordering
+                {reorderItems.length > 5 && (
+                  <div style={{ fontSize: '13px', color: 'var(--color-muted)', textAlign: 'center', paddingTop: '8px' }}>
+                    +{reorderItems.length - 5} more requiring reorder
                   </div>
                 )}
               </div>
             )}
           </div>
         </div>
-
       </div>
 
       <style>{`
-        .dashboard-stat-card:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04) !important;
-          border-color: var(--color-muted) !important;
-        }
-        .action-btn:hover {
-          background-color: var(--color-surface-soft) !important;
-          border-color: var(--color-muted) !important;
-        }
-        .reorder-item-row:hover {
-          transform: translateX(2px);
-        }
-        @media (max-width: 900px) {
-          .main-dashboard-grid {
-            grid-template-columns: 1fr !important;
-          }
+        @media (max-width: 880px) {
+          .dash-main { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>
