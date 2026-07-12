@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { InventoryContext } from '../context/InventoryContext';
-import { Download, AlertCircle, TrendingUp, Package, Truck, AlertTriangle, Clock, Zap, Upload } from 'lucide-react';
+import { Download, AlertCircle, TrendingUp, Package, Truck, AlertTriangle, Clock, Zap, Upload, Layout } from 'lucide-react';
 import SimpleInventoryChart from '../components/SimpleInventoryChart';
 import SimpleCategoryBreakdown from '../components/SimpleCategoryBreakdown';
 import SimpleSalesOverview from '../components/SimpleSalesOverview';
@@ -18,7 +18,7 @@ const exportCSV = (data, filename) => {
 };
 
 const Dashboard = () => {
-  const { products, orders, warehouses, api } = useContext(InventoryContext);
+  const { products, orders, api } = useContext(InventoryContext);
   const [advancedMetrics, setAdvancedMetrics] = useState({
     shipments: { total: 0, inTransit: 0, delivered: 0 },
     batches: { total: 0, expiringSoon: 0, expired: 0 },
@@ -43,11 +43,11 @@ const Dashboard = () => {
 
       setAdvancedMetrics({
         shipments: {
-          total: shipmentsRes.data.pagination?.total || 0,
-          inTransit: shipmentsRes.data.shipments?.filter(s => s.status === 'IN_TRANSIT').length || 0,
-          delivered: shipmentsRes.data.shipments?.filter(s => s.status === 'DELIVERED').length || 0
+          total: shipmentsRes.data?.pagination?.total || 0,
+          inTransit: shipmentsRes.data?.shipments?.filter(s => s.status === 'IN_TRANSIT').length || 0,
+          delivered: shipmentsRes.data?.shipments?.filter(s => s.status === 'DELIVERED').length || 0
         },
-        batches: batchesRes.data || { total: 0, expiringSoon: 0, expired: 0 },
+        batches: batchesRes.data || batches || { total: 0, expiringSoon: 0, expired: 0 },
         alerts: alertsRes.data || { total: 0, critical: 0, active: 0 },
         forecasts: forecastsRes.data || { total: 0, approved: 0 }
       });
@@ -58,7 +58,6 @@ const Dashboard = () => {
     }
   };
 
-  // Calculate key metrics
   const lowStockProducts = products.filter(p => p.stock <= (p.lowStockThreshold || 10));
   const outOfStockProducts = products.filter(p => p.stock === 0);
   const totalInventoryValue = products.reduce((sum, p) => sum + ((p.price || 0) * (p.stock || 0)), 0);
@@ -99,7 +98,7 @@ const Dashboard = () => {
           return;
         }
 
-        await api.importCsv(data, true);
+        await api.post('/import', { data, wipeDatabase: true });
         alert('Import successful! Reloading dashboard...');
         window.location.reload();
       } catch (error) {
@@ -109,239 +108,227 @@ const Dashboard = () => {
       }
     };
     reader.readAsText(file);
-    // reset input
     e.target.value = null;
   };
 
-  const StatCard = ({ title, value, icon: Icon, color, delta }) => (
-    <div className="card" style={{ flex: 1, minWidth: '200px', padding: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {Icon && <Icon size={20} color="var(--color-accent)" strokeWidth={1.5} />}
-          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
-            {title}
-          </div>
-        </div>
-      </div>
-      <div style={{
-        fontSize: '32px',
-        fontWeight: '700',
-        letterSpacing: '-0.5px',
-        color: 'var(--color-text-primary)',
-        fontVariantNumeric: 'tabular-nums',
-        lineHeight: 1
-      }}>
+  const StatItem = ({ label, value, subtext, color }) => (
+    <div style={{
+      padding: '16px 20px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '6px'
+    }}>
+      <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-muted)', fontWeight: '600' }}>
+        {label}
+      </span>
+      <span style={{ fontSize: '24px', fontWeight: '700', color: color || 'var(--color-ink)', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
         {value}
-      </div>
-      {delta && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '8px', fontSize: '12px' }}>
-          <span style={{ color: delta.type === 'up' ? 'var(--color-success)' : 'var(--color-danger)' }}>
-            {delta.type === 'up' ? '↑' : '↓'} {delta.value}
-          </span>
-          <span style={{ color: 'var(--color-text-tertiary)' }}>vs last month</span>
-        </div>
+      </span>
+      {subtext && (
+        <span style={{ fontSize: '11px', color: 'var(--color-muted)' }}>
+          {subtext}
+        </span>
       )}
     </div>
   );
 
   return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* Alerts */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+      {/* Title Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <h1 style={{ fontSize: '28px', fontWeight: '700', letterSpacing: '-0.5px', margin: 0, color: 'var(--color-ink)' }}>Overview</h1>
+          <p style={{ fontSize: '13px', color: 'var(--color-muted)', marginTop: '4px' }}>Real-time inventory ledger and operational velocity metrics</p>
+        </div>
+        
+        {/* Header Actions */}
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            onClick={() => document.getElementById('csvUpload').click()}
+            style={{
+              padding: '8px 16px',
+              fontSize: '13px',
+              fontWeight: '600',
+              backgroundColor: 'var(--color-canvas)',
+              color: 'var(--color-ink)',
+              border: '1px solid var(--color-hairline)',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+            disabled={importing}
+          >
+            <Upload size={14} /> {importing ? 'Importing...' : 'Import CSV'}
+          </button>
+          <input 
+            type="file" 
+            id="csvUpload" 
+            accept=".csv" 
+            style={{ display: 'none' }} 
+            onChange={handleFileUpload} 
+          />
+          <button
+            onClick={() => exportCSV(products, 'inventory_export.csv')}
+            style={{
+              padding: '8px 16px',
+              fontSize: '13px',
+              fontWeight: '600',
+              backgroundColor: 'var(--color-canvas)',
+              color: 'var(--color-ink)',
+              border: '1px solid var(--color-hairline)',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <Download size={14} /> Export CSV
+          </button>
+        </div>
+      </div>
+
+      {/* Critical Alert Bar */}
       {(outOfStockProducts.length > 0 || lowStockProducts.length > 0 || advancedMetrics.alerts.critical > 0) && (
-        <div className="badge badge-danger" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', borderRadius: 'var(--rounded-none)', width: '100%', justifyContent: 'flex-start', border: '1px solid var(--color-danger)' }}>
-          <AlertCircle size={20} />
-          <span style={{ textTransform: 'uppercase', letterSpacing: '1px', fontSize: '12px', fontWeight: '700' }}>
-            <strong>SYSTEM ALERTS:</strong>
-            {outOfStockProducts.length > 0 && ` ${outOfStockProducts.length} items OUT OF STOCK`}
-            {outOfStockProducts.length > 0 && lowStockProducts.length > 0 && ' |'}
-            {lowStockProducts.length > 0 && ` ${lowStockProducts.length} items LOW ON STOCK`}
-            {advancedMetrics.alerts.critical > 0 && ` | ${advancedMetrics.alerts.critical} CRITICAL SECURITY / QUALITY ERRORS`}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          padding: '12px 16px',
+          backgroundColor: 'rgba(217, 45, 32, 0.05)',
+          border: '1px solid rgba(217, 45, 32, 0.1)',
+          borderRadius: '8px',
+          color: 'var(--color-danger)',
+          fontSize: '13px',
+          fontWeight: '500'
+        }}>
+          <AlertCircle size={16} />
+          <span>
+            {outOfStockProducts.length > 0 && `${outOfStockProducts.length} items out of stock. `}
+            {lowStockProducts.length > 0 && `${lowStockProducts.length} items below safety threshold. `}
+            {advancedMetrics.alerts.critical > 0 && `${advancedMetrics.alerts.critical} unresolved critical issues.`}
           </span>
         </div>
       )}
 
-      {/* Primary KPI Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '16px'
-      }}>
-        <StatCard
-          title="Total Products"
-          value={products.length}
-          icon={Package}
-          delta={{ type: 'up', value: '4.8%' }}
-        />
-        <StatCard
-          title="Inventory Value"
-          value={`$${(totalInventoryValue / 1000).toFixed(0)}k`}
-          icon={TrendingUp}
-          delta={{ type: 'up', value: '12.4%' }}
-        />
-        <StatCard
-          title="Low Stock Items"
-          value={lowStockProducts.length}
-          icon={AlertCircle}
-          delta={lowStockProducts.length > 0 ? { type: 'down', value: `${lowStockProducts.length} items` } : null}
-        />
-        <StatCard
-          title="Pending Orders"
-          value={pendingOrders}
-          icon={Package}
-          delta={{ type: 'up', value: '8%' }}
-        />
-      </div>
-
-      {/* Advanced Features KPI Cards */}
-      {!loading && (
+      {/* Minimalist KPI Banner */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        gap: '12px'
-      }}>
-          <StatCard
-            title="Active Shipments"
-            value={advancedMetrics.shipments.inTransit}
-            icon={Truck}
-            color="#8B5CF6"
-          />
-          <StatCard
-            title="Expiring Soon"
-            value={advancedMetrics.batches.expiringSoon}
-            icon={Clock}
-            color={advancedMetrics.batches.expiringSoon > 0 ? '#F59E0B' : '#10B981'}
-          />
-          <StatCard
-            title="Critical Alerts"
-            value={advancedMetrics.alerts.critical}
-            icon={AlertTriangle}
-            color={advancedMetrics.alerts.critical > 0 ? '#EF4444' : '#10B981'}
-          />
-          <StatCard
-            title="Demand Forecasts"
-            value={advancedMetrics.forecasts.approved}
-            icon={Zap}
-            color="#10B981"
+        border: '1px solid var(--color-hairline)',
+        borderRadius: '12px',
+        backgroundColor: 'var(--color-canvas)',
+        divideColor: 'var(--color-hairline)',
+        overflow: 'hidden'
+      }} className="kpi-banner">
+        <StatItem 
+          label="Total SKU Count" 
+          value={products.length} 
+          subtext="Unique catalog records" 
+        />
+        <div style={{ borderLeft: '1px solid var(--color-hairline)' }}>
+          <StatItem 
+            label="Inventory Value" 
+            value={`$${(totalInventoryValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}`} 
+            subtext="Calculated asset valuation" 
           />
         </div>
-      )}
-
-      {/* Quick Actions */}
-      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '24px', marginBottom: '24px' }}>
-        <button
-          onClick={() => document.getElementById('csvUpload').click()}
-          className="btn-ghost"
-          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-          disabled={importing}
-        >
-          <Upload size={16} /> {importing ? 'IMPORTING...' : 'IMPORT DATA'}
-        </button>
-        <input 
-          type="file" 
-          id="csvUpload" 
-          accept=".csv" 
-          style={{ display: 'none' }} 
-          onChange={handleFileUpload} 
-        />
-        <button
-          onClick={() => exportCSV(products, 'inventory_export.csv')}
-          className="btn-ghost"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-        >
-          <Download size={16} /> EXPORT INVENTORY
-        </button>
-        <button
-          onClick={() => window.location.href = '/analytics'}
-          className="btn-solid"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-        >
-          VIEW ANALYTICS
-        </button>
+        <div style={{ borderLeft: '1px solid var(--color-hairline)' }}>
+          <StatItem 
+            label="Understocked" 
+            value={lowStockProducts.length} 
+            color={lowStockProducts.length > 0 ? 'var(--color-danger)' : undefined}
+            subtext="Needs procurement priority" 
+          />
+        </div>
+        <div style={{ borderLeft: '1px solid var(--color-hairline)' }}>
+          <StatItem 
+            label="Pending Transactions" 
+            value={pendingOrders} 
+            subtext="Awaiting verification" 
+          />
+        </div>
       </div>
 
-      {/* Charts Row 1 */}
+      {/* Primary Analytics Section */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        gap: '16px'
-      }}>
-        <SimpleInventoryChart products={products} />
-        <SimpleCategoryBreakdown products={products} />
-      </div>
+        gridTemplateColumns: '2fr 1fr',
+        gap: '24px',
+        alignItems: 'start'
+      }} className="main-dashboard-grid">
+        
+        {/* Left Column: Trend Charts and Ledgers */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <SimpleInventoryChart products={products} />
+          
+          <SimpleSalesOverview orders={orders} />
+        </div>
 
-      {/* Sales Overview */}
-      <SimpleSalesOverview orders={orders} />
+        {/* Right Column: Category & Reorders */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <SimpleCategoryBreakdown products={products} />
 
-      {/* Reorder Recommendations */}
-      <div className="card">
-        <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px', textTransform: 'uppercase' }}>
-          🔔 Reorder Recommendations
-        </h3>
-
-        {reorderItems.length === 0 ? (
-          <p style={{
-            color: 'var(--color-text-muted)',
-            fontSize: '13px',
-            textAlign: 'center',
-            padding: '24px',
-            backgroundColor: 'var(--color-surface-soft)',
-            borderRadius: 'var(--rounded-none)',
-            border: '1px solid var(--color-hairline)'
-          }}>
-            ✅ All inventory levels are optimal. No reorders needed.
-          </p>
-        ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-            gap: '12px'
-          }}>
-            {reorderItems.slice(0, 6).map(item => (
-              <div
-                key={item.productId}
-                style={{
-                  backgroundColor: 'var(--color-surface-soft)',
-                  border: '1px solid var(--color-hairline)',
-                  borderRadius: 'var(--rounded-none)',
-                  padding: '16px',
-                  borderLeft: '4px solid var(--color-m-red)'
-                }}
-              >
-                <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', maxHeight: '34px', overflow: 'hidden' }}>
-                  {item.name}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
-                  <span style={{ color: 'var(--color-text-secondary)' }}>Current:</span>
-                  <span>{item.currentStock} units</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-                  <span style={{ color: 'var(--color-text-secondary)' }}>Reorder:</span>
-                  <span style={{ color: '#EF4444', fontWeight: 'bold' }}>+{item.suggestedReorder}</span>
-                </div>
+          {/* Reorders Card */}
+          <div className="card" style={{ padding: '20px' }}>
+            <h3 style={{ fontSize: '13px', fontWeight: '700', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-ink)' }}>
+              Reorder Queue
+            </h3>
+            
+            {reorderItems.length === 0 ? (
+              <p style={{ color: 'var(--color-muted)', fontSize: '13px', textAlign: 'center', padding: '24px 0' }}>
+                All inventory quantities are currently above safety stock thresholds.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {reorderItems.slice(0, 4).map(item => (
+                  <div key={item.productId} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '10px 12px',
+                    border: '1px solid var(--color-hairline)',
+                    backgroundColor: 'var(--color-surface-soft)',
+                    borderRadius: '8px'
+                  }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', maxWidth: '70%' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--color-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.name}
+                      </span>
+                      <span style={{ fontSize: '11px', color: 'var(--color-muted)' }}>
+                        In Stock: {item.currentStock} units
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--color-danger)' }}>
+                      +{item.suggestedReorder}
+                    </span>
+                  </div>
+                ))}
+                
+                {reorderItems.length > 4 && (
+                  <div style={{ fontSize: '11px', color: 'var(--color-muted)', textAlign: 'center', marginTop: '6px' }}>
+                    + {reorderItems.length - 4} more SKUs require reordering
+                  </div>
+                )}
               </div>
-            ))}
+            )}
           </div>
-        )}
+        </div>
 
-        {reorderItems.length > 6 && (
-          <p style={{
-            color: 'var(--color-text-muted)',
-            fontSize: '11px',
-            marginTop: '12px',
-            textAlign: 'center'
-          }}>
-            ... and {reorderItems.length - 6} more items need reordering
-          </p>
-        )}
       </div>
+
+      <style>{`
+        @media (max-width: 900px) {
+          .main-dashboard-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .kpi-banner {
+            grid-template-columns: 1fr 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };
