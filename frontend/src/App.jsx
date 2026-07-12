@@ -60,12 +60,20 @@ const TopNav = () => {
       { path: '/dead-stock', label: 'Dead Stock' },
     ],
     'Intelligence': [
-      { path: '/analytics', label: 'Analytics' },
+      { path: '/analytics', label: 'Analytics', roles: ['ADMIN', 'MANAGER'] },
       { path: '/alerts', label: 'Alerts' },
-      { path: '/reorders', label: 'Reorder Engine' },
+      { path: '/reorders', label: 'Reorder Engine', roles: ['ADMIN', 'MANAGER'] },
       { path: '/scanner', label: 'Scanner' },
     ]
   };
+
+  // Filter items by role
+  Object.keys(navGroups).forEach(key => {
+    navGroups[key] = navGroups[key].filter(item => {
+      if (!item.roles) return true;
+      return item.roles.includes(user?.role);
+    });
+  });
 
   if (user?.role === 'ADMIN') {
     navGroups['Admin'] = [{ path: '/users', label: 'Users' }];
@@ -371,7 +379,7 @@ const Layout = ({ children }) => {
   );
 };
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useContext(AuthContext);
 
   if (loading) {
@@ -398,6 +406,31 @@ const ProtectedRoute = ({ children }) => {
   }
 
   if (!user) return <Navigate to="/login" replace />;
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return (
+      <Layout>
+        <div style={{ padding: '80px', textAlign: 'center', fontFamily: 'var(--font-body)', color: 'var(--color-ink)' }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', marginBottom: '16px', fontWeight: '300' }}>Access Denied</h2>
+          <p style={{ color: 'var(--color-muted)', marginBottom: '32px' }}>
+            You do not have permission to view this page. Required roles: {allowedRoles.join(', ')}
+          </p>
+          <Link to="/" style={{
+            padding: '10px 24px',
+            backgroundColor: 'var(--color-ink)',
+            color: 'white',
+            borderRadius: '9999px',
+            textDecoration: 'none',
+            fontSize: '14px',
+            fontWeight: '500'
+          }}>
+            Return to Dashboard
+          </Link>
+        </div>
+      </Layout>
+    );
+  }
+
   return <Layout>{children}</Layout>;
 };
 
@@ -419,7 +452,7 @@ function App() {
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+                <Route path="/analytics" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><Analytics /></ProtectedRoute>} />
                 <Route path="/shipments" element={<ProtectedRoute><Shipments /></ProtectedRoute>} />
                 <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
                 <Route path="/batches" element={<ProtectedRoute><Batches /></ProtectedRoute>} />
@@ -428,8 +461,8 @@ function App() {
                 <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
                 <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
                 <Route path="/warehouses" element={<ProtectedRoute><Warehouses /></ProtectedRoute>} />
-                <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
-                <Route path="/reorders" element={<ProtectedRoute><ReorderEngine /></ProtectedRoute>} />
+                <Route path="/users" element={<ProtectedRoute allowedRoles={['ADMIN']}><Users /></ProtectedRoute>} />
+                <Route path="/reorders" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><ReorderEngine /></ProtectedRoute>} />
                 <Route path="/returns" element={<ProtectedRoute><Returns /></ProtectedRoute>} />
                 <Route path="/dead-stock" element={<ProtectedRoute><DeadStock /></ProtectedRoute>} />
                 <Route path="/scanner" element={<ProtectedRoute><MobileScanner /></ProtectedRoute>} />

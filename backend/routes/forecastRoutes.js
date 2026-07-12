@@ -1,12 +1,12 @@
 import express from 'express';
 import Forecast from '../models/Forecast.js';
-import { protect } from '../middleware/auth.js';
+import { protect, authorize } from '../middleware/auth.js';
 import ForecastingService from '../services/forecastingService.js';
 
 const router = express.Router();
 
 // Generate forecast for a product
-router.post('/generate', protect, async (req, res) => {
+router.post('/generate', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const { productId, method, period, historicalPeriodMonths, forecastPeriodMonths } = req.body;
 
@@ -28,7 +28,7 @@ router.post('/generate', protect, async (req, res) => {
 });
 
 // Get forecasts for a product
-router.get('/product/:productId', protect, async (req, res) => {
+router.get('/product/:productId', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const { limit = 5 } = req.query;
 
@@ -45,7 +45,7 @@ router.get('/product/:productId', protect, async (req, res) => {
 });
 
 // Get forecast by ID
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const forecast = await Forecast.findById(req.params.id)
       .populate('product', 'name sku')
@@ -63,7 +63,7 @@ router.get('/:id', protect, async (req, res) => {
 });
 
 // Review and approve forecast
-router.put('/:id/review', protect, async (req, res) => {
+router.put('/:id/review', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const { status, notes } = req.body;
 
@@ -89,7 +89,7 @@ router.put('/:id/review', protect, async (req, res) => {
 });
 
 // Get forecast accuracy metrics
-router.get('/:id/accuracy', protect, async (req, res) => {
+router.get('/:id/accuracy', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const forecast = await Forecast.findById(req.params.id);
 
@@ -112,7 +112,7 @@ router.get('/:id/accuracy', protect, async (req, res) => {
 });
 
 // Generate forecasts for all products (batch operation)
-router.post('/generate-all', protect, async (req, res) => {
+router.post('/generate-all', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const results = await ForecastingService.updateAllForecasts();
 
@@ -126,7 +126,7 @@ router.post('/generate-all', protect, async (req, res) => {
 });
 
 // Get forecast analytics
-router.get('/analytics/overview', protect, async (req, res) => {
+router.get('/analytics/overview', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const totalForecasts = await Forecast.countDocuments();
     const approvedForecasts = await Forecast.countDocuments({ status: 'APPROVED' });
@@ -160,7 +160,7 @@ router.get('/analytics/overview', protect, async (req, res) => {
 });
 
 // What-if forecasting
-router.post('/what-if', protect, async (req, res) => {
+router.post('/what-if', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const { productId, scenarios } = req.body;
 

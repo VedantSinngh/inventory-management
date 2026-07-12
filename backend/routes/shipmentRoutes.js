@@ -1,7 +1,7 @@
 import express from 'express';
 import Shipment from '../models/Shipment.js';
 import Order from '../models/Order.js';
-import { protect } from '../middleware/auth.js';
+import { protect, authorize } from '../middleware/auth.js';
 import MapService from '../services/mapService.js';
 import WeatherService from '../services/weatherService.js';
 import RouteOptimizationService from '../services/routeOptimizationService.js';
@@ -10,7 +10,7 @@ import SimulatorService from '../services/simulatorService.js';
 const router = express.Router();
 
 // Get all shipments
-router.get('/', protect, async (req, res) => {
+router.get('/', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const { status, carrier, page = 1, limit = 10 } = req.query;
 
@@ -42,7 +42,7 @@ router.get('/', protect, async (req, res) => {
 });
 
 // Get shipment by ID
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const shipment = await Shipment.findById(req.params.id)
       .populate('order', 'type totalAmount items')
@@ -60,7 +60,7 @@ router.get('/:id', protect, async (req, res) => {
 });
 
 // Create new shipment
-router.post('/', protect, async (req, res) => {
+router.post('/', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const {
       orderId,
@@ -143,7 +143,7 @@ router.post('/', protect, async (req, res) => {
 });
 
 // Update shipment status
-router.put('/:id/status', protect, async (req, res) => {
+router.put('/:id/status', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const { status, notes } = req.body;
 
@@ -191,7 +191,7 @@ router.put('/:id/status', protect, async (req, res) => {
 });
 
 // Update shipment location (for live tracking)
-router.put('/:id/location', protect, async (req, res) => {
+router.put('/:id/location', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const { latitude, longitude, address } = req.body;
 
@@ -233,7 +233,7 @@ router.put('/:id/location', protect, async (req, res) => {
 });
 
 // Get shipment route
-router.get('/:id/route', protect, async (req, res) => {
+router.get('/:id/route', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const shipment = await Shipment.findById(req.params.id);
     if (!shipment) {
@@ -257,7 +257,7 @@ router.get('/:id/route', protect, async (req, res) => {
 });
 
 // Get weather impact for shipment
-router.get('/:id/weather', protect, async (req, res) => {
+router.get('/:id/weather', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const shipment = await Shipment.findById(req.params.id);
     if (!shipment) {
@@ -283,7 +283,7 @@ router.get('/:id/weather', protect, async (req, res) => {
 });
 
 // Assign vehicle to shipment
-router.put('/:id/assign-vehicle', protect, async (req, res) => {
+router.put('/:id/assign-vehicle', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const { vehicleId, driverInfo } = req.body;
 
@@ -305,7 +305,7 @@ router.put('/:id/assign-vehicle', protect, async (req, res) => {
 });
 
 // Get tracking URL
-router.get('/:id/tracking-url', protect, async (req, res) => {
+router.get('/:id/tracking-url', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const shipment = await Shipment.findById(req.params.id);
     if (!shipment) {
@@ -336,7 +336,7 @@ router.get('/:id/tracking-url', protect, async (req, res) => {
 });
 
 // Start Simulation
-router.post('/:id/simulate/start', protect, async (req, res) => {
+router.post('/:id/simulate/start', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const io = req.app.get('io');
     await SimulatorService.startSimulation(req.params.id, io);
@@ -347,7 +347,7 @@ router.post('/:id/simulate/start', protect, async (req, res) => {
 });
 
 // Stop Simulation
-router.post('/:id/simulate/stop', protect, async (req, res) => {
+router.post('/:id/simulate/stop', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const stopped = SimulatorService.stopSimulation(req.params.id);
     if (stopped) {

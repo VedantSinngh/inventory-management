@@ -82,13 +82,15 @@ const Products = () => {
             <option value="">All categories</option>
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <button
-            className="btn-primary"
-            style={{ height: '40px', gap: '6px', display: 'inline-flex', alignItems: 'center' }}
-            onClick={openNew}
-          >
-            <Plus size={15} /> Add product
-          </button>
+          {['ADMIN', 'MANAGER'].includes(user?.role) && (
+            <button
+              className="btn-primary"
+              style={{ height: '40px', gap: '6px', display: 'inline-flex', alignItems: 'center' }}
+              onClick={openNew}
+            >
+              <Plus size={15} /> Add product
+            </button>
+          )}
         </div>
       </div>
 
@@ -158,20 +160,22 @@ const Products = () => {
                       >
                         <Barcode size={14} />
                       </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openEdit(product); }}
-                        title="Edit"
-                        style={{
-                          width: '32px', height: '32px', borderRadius: 'var(--rounded-md)',
-                          border: '1px solid var(--color-hairline)', background: 'transparent',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: 'var(--color-muted)', cursor: 'pointer', transition: 'all 150ms'
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--color-surface-soft)'; e.currentTarget.style.color = 'var(--color-ink)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--color-muted)'; }}
-                      >
-                        <Edit size={14} />
-                      </button>
+                      {['ADMIN', 'MANAGER'].includes(user?.role) && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openEdit(product); }}
+                          title="Edit"
+                          style={{
+                            width: '32px', height: '32px', borderRadius: 'var(--rounded-md)',
+                            border: '1px solid var(--color-hairline)', background: 'transparent',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: 'var(--color-muted)', cursor: 'pointer', transition: 'all 150ms'
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--color-surface-soft)'; e.currentTarget.style.color = 'var(--color-ink)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--color-muted)'; }}
+                        >
+                          <Edit size={14} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -203,13 +207,15 @@ const Products = () => {
             Selected: <strong style={{ color: 'var(--color-ink)', fontWeight: '600' }}>{selectedProduct.name}</strong>
           </span>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              className="btn-primary"
-              style={{ height: '32px', padding: '0 14px', fontSize: '13px', gap: '5px', display: 'flex', alignItems: 'center' }}
-              onClick={() => openEdit(selectedProduct)}
-            >
-              <Edit size={13} /> Edit
-            </button>
+            {['ADMIN', 'MANAGER'].includes(user?.role) && (
+              <button
+                className="btn-primary"
+                style={{ height: '32px', padding: '0 14px', fontSize: '13px', gap: '5px', display: 'flex', alignItems: 'center' }}
+                onClick={() => openEdit(selectedProduct)}
+              >
+                <Edit size={13} /> Edit
+              </button>
+            )}
             <button
               className="btn-secondary"
               style={{ height: '32px', padding: '0 14px', fontSize: '13px', gap: '5px', display: 'flex', alignItems: 'center' }}

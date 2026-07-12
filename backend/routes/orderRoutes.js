@@ -76,7 +76,7 @@ const validateOrderCreate = [
 ];
 
 // Get all orders - with pagination and filtering
-router.get('/', protect, async (req, res) => {
+router.get('/', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -119,7 +119,7 @@ router.get('/', protect, async (req, res) => {
  * Create order with atomic stock update using MongoDB transactions
  * Prevents race conditions where concurrent orders can over-deduct stock
  */
-router.post('/', protect, validateOrderCreate, async (req, res) => {
+router.post('/', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), validateOrderCreate, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ message: 'Validation error', errors: errors.array() });
@@ -283,7 +283,7 @@ router.post('/', protect, validateOrderCreate, async (req, res) => {
 });
 
 // Get single order
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
       .populate('items.product')

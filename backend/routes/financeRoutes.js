@@ -12,7 +12,7 @@ const router = express.Router();
  * GET /api/finance/sku-margins
  * Fetch gross margin per SKU
  */
-router.get('/sku-margins', protect, authorize(['ADMIN', 'MANAGER']), async (req, res) => {
+router.get('/sku-margins', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const products = await Product.find({ deletedAt: null }).lean();
     const orders = await Order.find({ type: 'SALES', status: 'COMPLETED' }).lean();
@@ -58,7 +58,7 @@ router.get('/sku-margins', protect, authorize(['ADMIN', 'MANAGER']), async (req,
  * GET /api/finance/pl-summary
  * Get monthly P&L summary view
  */
-router.get('/pl-summary', protect, authorize(['ADMIN', 'MANAGER']), async (req, res) => {
+router.get('/pl-summary', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const orders = await Order.find({ type: 'SALES', status: 'COMPLETED' }).lean();
 
@@ -102,7 +102,7 @@ router.get('/pl-summary', protect, authorize(['ADMIN', 'MANAGER']), async (req, 
  * GET /api/finance/rates
  * Fetch exchange rates (from cache)
  */
-router.get('/rates', protect, async (req, res) => {
+router.get('/rates', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     let rateCache = await ExchangeRate.findOne({ baseCurrency: 'USD' });
     if (!rateCache) {
@@ -126,7 +126,7 @@ router.get('/rates', protect, async (req, res) => {
  * POST /api/finance/rates/refresh
  * Force rate cache update
  */
-router.post('/rates/refresh', protect, authorize(['ADMIN']), async (req, res) => {
+router.post('/rates/refresh', protect, authorize('ADMIN'), async (req, res) => {
   try {
     const response = await axios.get('https://open.er-api.com/v6/latest/USD');
     const rateCache = await ExchangeRate.findOneAndUpdate(

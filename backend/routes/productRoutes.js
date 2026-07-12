@@ -8,7 +8,7 @@ import { validateProductCreate, validateProductUpdate } from '../middleware/vali
 const router = express.Router();
 
 // Get all products with pagination and filtering
-router.get('/', protect, async (req, res) => {
+router.get('/', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -95,7 +95,7 @@ router.post('/', protect, authorize('ADMIN', 'MANAGER'), validateProductCreate, 
 });
 
 // Get single product
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const product = await Product.findOne({ _id: req.params.id, deletedAt: null })
       .populate('warehouse');
@@ -194,7 +194,7 @@ router.delete('/:id', protect, authorize('ADMIN'), async (req, res) => {
 });
 
 // Get barcode PNG stream for a SKU
-router.get('/:sku/barcode', protect, async (req, res) => {
+router.get('/:sku/barcode', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const { sku } = req.params;
     const bwipjs = (await import('bwip-js')).default;
@@ -214,7 +214,7 @@ router.get('/:sku/barcode', protect, async (req, res) => {
 });
 
 // Scan-to-update stock or inspect SKU during audits
-router.post('/scan-update', protect, authorize(['ADMIN', 'MANAGER']), async (req, res) => {
+router.post('/scan-update', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const { sku, quantityAdjustment, actionType, notes } = req.body;
 
