@@ -64,10 +64,10 @@ const ShipmentTracker = () => {
   const toggleSimulation = async (shipmentId) => {
     try {
       if (simulating) {
-        await api.stopShipmentSimulation(shipmentId);
+        await api.post(`/shipments/${shipmentId}/simulate/stop`);
         setSimulating(false);
       } else {
-        await api.startShipmentSimulation(shipmentId);
+        await api.post(`/shipments/${shipmentId}/simulate/start`);
         setSimulating(true);
         alert('Simulation started! The truck will now move automatically on the map.');
       }

@@ -307,7 +307,7 @@ class APIService {
   }
 
   updateBatchStatus(id, qualityStatus) {
-    return this.put(`/batches/${id}`, { qualityStatus });
+    return this.put(`/batches/${id}/quality`, { status: qualityStatus });
   }
 
   // ========== FORECASTS ==========

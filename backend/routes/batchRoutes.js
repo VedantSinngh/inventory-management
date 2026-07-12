@@ -6,6 +6,36 @@ import BatchTrackingService from '../services/batchTrackingService.js';
 
 const router = express.Router();
 
+// Get all batches with pagination and filters
+router.get('/', protect, async (req, res) => {
+  try {
+    const { page = 1, limit = 20, qualityStatus } = req.query;
+    const query = {};
+    if (qualityStatus) query.qualityStatus = qualityStatus;
+
+    const batches = await Batch.find(query)
+      .populate('product', 'name sku')
+      .populate('supplier', 'name code')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Batch.countDocuments(query);
+
+    res.json({
+      data: batches,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching batches', error: error.message });
+  }
+});
+
 // Get batches for a product
 router.get('/product/:productId', protect, async (req, res) => {
   try {

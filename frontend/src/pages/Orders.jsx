@@ -4,7 +4,7 @@ import CreateOrderModal from '../components/CreateOrderModal';
 import { ChevronDown, ChevronUp, Plus, ShoppingBag } from 'lucide-react';
 
 const Orders = () => {
-  const { orders } = useContext(InventoryContext);
+  const { orders, api, fetchOrders, fetchProducts } = useContext(InventoryContext);
   const [selectedId, setSelectedId] = useState(null);
   const [modalType, setModalType] = useState(null);
   const [activeTab, setActiveTab] = useState('ALL');
@@ -160,26 +160,86 @@ const Orders = () => {
                             ORDER LINE ITEMS DETAILED LEDGER
                           </h4>
                           {order.items && order.items.length > 0 ? (
-                            <table style={{ width: '100%' }}>
-                              <thead>
-                                <tr style={{ background: 'transparent', height: '32px' }}>
-                                  <th style={{ padding: '6px 12px', fontSize: '10px' }}>PRODUCT ID</th>
-                                  <th style={{ padding: '6px 12px', fontSize: '10px' }}>QUANTITY</th>
-                                  <th style={{ padding: '6px 12px', fontSize: '10px' }}>UNIT PRICE</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {order.items.map((item, idx) => (
-                                  <tr key={idx} style={{ height: '36px', background: 'transparent' }}>
-                                    <td style={{ padding: '6px 12px', color: 'var(--color-text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-                                      {item.product?._id ? item.product._id.slice(-8).toUpperCase() : (item.product || '').slice(-8).toUpperCase()}
-                                    </td>
-                                    <td style={{ padding: '6px 12px', fontVariantNumeric: 'tabular-nums' }}>{item.quantity}</td>
-                                    <td style={{ padding: '6px 12px', fontVariantNumeric: 'tabular-nums' }}>${item.price}</td>
+                            <>
+                              <table style={{ width: '100%' }}>
+                                <thead>
+                                  <tr style={{ background: 'transparent', height: '32px' }}>
+                                    <th style={{ padding: '6px 12px', fontSize: '10px' }}>PRODUCT ID</th>
+                                    <th style={{ padding: '6px 12px', fontSize: '10px' }}>QUANTITY</th>
+                                    <th style={{ padding: '6px 12px', fontSize: '10px' }}>UNIT PRICE</th>
                                   </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                                </thead>
+                                <tbody>
+                                  {order.items.map((item, idx) => (
+                                    <tr key={idx} style={{ height: '36px', background: 'transparent' }}>
+                                      <td style={{ padding: '6px 12px', color: 'var(--color-text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                                        {item.product?._id ? item.product._id.slice(-8).toUpperCase() : (item.product || '').slice(-8).toUpperCase()}
+                                      </td>
+                                      <td style={{ padding: '6px 12px', fontVariantNumeric: 'tabular-nums' }}>{item.quantity}</td>
+                                      <td style={{ padding: '6px 12px', fontVariantNumeric: 'tabular-nums' }}>${item.price || item.priceAtTime}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+
+                              {/* Order Action Buttons */}
+                              <div style={{ display: 'flex', gap: '8px', marginTop: '16px', borderTop: '1px solid var(--color-border)', paddingTop: '12px' }}>
+                                {order.status === 'PENDING' && (
+                                  <>
+                                    <button 
+                                      className="btn-primary" 
+                                      style={{ padding: '8px 16px', fontSize: '12px', backgroundColor: '#10B981', color: 'white', borderRadius: '4px' }}
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        try {
+                                          await api.put(`/orders/${order._id}`, { status: 'APPROVED' });
+                                          alert('Order approved!');
+                                          await Promise.all([fetchOrders(), fetchProducts()]);
+                                        } catch (err) {
+                                          alert(err.message || 'Error approving order');
+                                        }
+                                      }}
+                                    >
+                                      APPROVE ORDER
+                                    </button>
+                                    <button 
+                                      className="btn-secondary" 
+                                      style={{ padding: '8px 16px', fontSize: '12px', backgroundColor: '#EF4444', color: 'white', border: 'none', borderRadius: '4px' }}
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        try {
+                                          await api.post(`/orders/${order._id}/cancel`);
+                                          alert('Order cancelled!');
+                                          await Promise.all([fetchOrders(), fetchProducts()]);
+                                        } catch (err) {
+                                          alert(err.message || 'Error cancelling order');
+                                        }
+                                      }}
+                                    >
+                                      CANCEL ORDER
+                                    </button>
+                                  </>
+                                )}
+                                {order.status === 'APPROVED' && (
+                                  <button 
+                                    className="btn-primary" 
+                                    style={{ padding: '8px 16px', fontSize: '12px', backgroundColor: '#3B82F6', color: 'white', borderRadius: '4px' }}
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      try {
+                                        await api.put(`/orders/${order._id}`, { status: 'COMPLETED' });
+                                        alert('Order completed!');
+                                        await Promise.all([fetchOrders(), fetchProducts()]);
+                                      } catch (err) {
+                                        alert(err.message || 'Error completing order');
+                                      }
+                                    }}
+                                  >
+                                    COMPLETE ORDER
+                                  </button>
+                                )}
+                              </div>
+                            </>
                           ) : (
                             <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>No custom item records loaded.</div>
                           )}
