@@ -1,11 +1,11 @@
 import express from 'express';
 import Supplier from '../models/Supplier.js';
-import { protect } from '../middleware/auth.js';
+import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // Get all suppliers
-router.get('/', protect, async (req, res) => {
+router.get('/', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const { page = 1, limit = 10, search, status } = req.query;
 
@@ -41,7 +41,7 @@ router.get('/', protect, async (req, res) => {
 });
 
 // Get supplier by ID
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const supplier = await Supplier.findOne({ _id: req.params.id, deletedAt: null });
 
@@ -56,7 +56,7 @@ router.get('/:id', protect, async (req, res) => {
 });
 
 // Create new supplier
-router.post('/', protect, async (req, res) => {
+router.post('/', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const supplierData = { ...req.body, createdBy: req.user.id };
 
@@ -81,7 +81,7 @@ router.post('/', protect, async (req, res) => {
 });
 
 // Update supplier
-router.put('/:id', protect, async (req, res) => {
+router.put('/:id', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const supplier = await Supplier.findOne({ _id: req.params.id, deletedAt: null });
 
@@ -99,7 +99,7 @@ router.put('/:id', protect, async (req, res) => {
 });
 
 // Soft delete supplier
-router.delete('/:id', protect, async (req, res) => {
+router.delete('/:id', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const supplier = await Supplier.findById(req.params.id);
 
@@ -117,7 +117,7 @@ router.delete('/:id', protect, async (req, res) => {
 });
 
 // Get supplier performance metrics
-router.get('/:id/performance', protect, async (req, res) => {
+router.get('/:id/performance', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const supplier = await Supplier.findOne({ _id: req.params.id, deletedAt: null });
 
@@ -139,7 +139,7 @@ router.get('/:id/performance', protect, async (req, res) => {
 });
 
 // Update supplier rating
-router.put('/:id/rating', protect, async (req, res) => {
+router.put('/:id/rating', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const { rating, comment } = req.body;
 
@@ -166,7 +166,7 @@ router.put('/:id/rating', protect, async (req, res) => {
 });
 
 // Sync with supplier API (if available)
-router.post('/:id/sync', protect, async (req, res) => {
+router.post('/:id/sync', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const supplier = await Supplier.findOne({ _id: req.params.id, deletedAt: null });
 
@@ -195,7 +195,7 @@ router.post('/:id/sync', protect, async (req, res) => {
  * POST /api/suppliers/:id/performance/recalculate
  * Recalculate mean lead time and standard deviation based on delivery history
  */
-router.post('/:id/performance/recalculate', protect, async (req, res) => {
+router.post('/:id/performance/recalculate', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const supplier = await Supplier.findOne({ _id: req.params.id, deletedAt: null });
 

@@ -1,11 +1,13 @@
 import React, { useState, useContext } from 'react';
 import { InventoryContext } from '../context/InventoryContext';
+import { AuthContext } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
 import { MapPin, Plus, X, ArrowLeft } from 'lucide-react';
 
 const Warehouses = () => {
   const { warehouses, products, fetchWarehouses } = useContext(InventoryContext);
+  const { user } = useContext(AuthContext);
   const { success, error: showError } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState('');
@@ -116,22 +118,26 @@ const Warehouses = () => {
             {warehouses.length} active facilit{warehouses.length !== 1 ? 'ies' : 'y'} in your network
           </p>
         </div>
-        <button
-          className="btn-primary"
-          style={{ height: '40px', padding: '0 18px', fontSize: '14px', gap: '6px', display: 'inline-flex', alignItems: 'center' }}
-          onClick={() => setIsModalOpen(true)}
-        >
-          <Plus size={14} /> Register facility
-        </button>
+        {['ADMIN', 'MANAGER'].includes(user?.role) && (
+          <button
+            className="btn-primary"
+            style={{ height: '40px', padding: '0 18px', fontSize: '14px', gap: '6px', display: 'inline-flex', alignItems: 'center' }}
+            onClick={() => setIsModalOpen(true)}
+          >
+            <Plus size={14} /> Register facility
+          </button>
+        )}
       </div>
 
       {/* Warehouse Grid */}
       {warehouses.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '64px', backgroundColor: 'var(--color-surface-card)', border: '1px solid var(--color-hairline)', borderRadius: 'var(--rounded-xl)' }}>
           <p style={{ color: 'var(--color-muted)', marginBottom: '20px', fontSize: '15px' }}>No warehouses registered yet</p>
-          <button className="btn-primary" style={{ height: '40px', padding: '0 18px' }} onClick={() => setIsModalOpen(true)}>
-            Register your first facility
-          </button>
+          {['ADMIN', 'MANAGER'].includes(user?.role) && (
+            <button className="btn-primary" style={{ height: '40px', padding: '0 18px' }} onClick={() => setIsModalOpen(true)}>
+              Register your first facility
+            </button>
+          )}
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>

@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { InventoryContext } from '../context/InventoryContext';
 import { Mail, Phone, Globe, Plus, X, RefreshCw } from 'lucide-react';
+import { AuthContext } from '../context/AuthContext';
 
 const Suppliers = () => {
   const { api } = useContext(InventoryContext);
+  const { user } = useContext(AuthContext);
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -45,13 +47,15 @@ const Suppliers = () => {
             {suppliers.length} active supplier{suppliers.length !== 1 ? 's' : ''} in your network
           </p>
         </div>
-        <button
-          className={showForm ? 'btn-secondary' : 'btn-primary'}
-          style={{ height: '40px', padding: '0 18px', fontSize: '14px', gap: '6px', display: 'inline-flex', alignItems: 'center' }}
-          onClick={() => setShowForm(!showForm)}
-        >
-          {showForm ? (<><X size={14} /> Cancel</>) : (<><Plus size={14} /> Add supplier</>)}
-        </button>
+        {['ADMIN', 'MANAGER'].includes(user?.role) && (
+          <button
+            className={showForm ? 'btn-secondary' : 'btn-primary'}
+            style={{ height: '40px', padding: '0 18px', fontSize: '14px', gap: '6px', display: 'inline-flex', alignItems: 'center' }}
+            onClick={() => setShowForm(!showForm)}
+          >
+            {showForm ? (<><X size={14} /> Cancel</>) : (<><Plus size={14} /> Add supplier</>)}
+          </button>
+        )}
       </div>
 
       {/* Add Supplier Form */}
@@ -145,9 +149,11 @@ const Suppliers = () => {
       ) : suppliers.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--color-muted)' }}>
           <p style={{ marginBottom: '16px', fontSize: '16px' }}>No suppliers yet</p>
-          <button className="btn-primary" style={{ height: '40px', padding: '0 18px', fontSize: '14px' }} onClick={() => setShowForm(true)}>
-            Add your first supplier
-          </button>
+          {['ADMIN', 'MANAGER'].includes(user?.role) && (
+            <button className="btn-primary" style={{ height: '40px', padding: '0 18px', fontSize: '14px' }} onClick={() => setShowForm(true)}>
+              Add your first supplier
+            </button>
+          )}
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: '20px' }}>
@@ -243,20 +249,22 @@ const Suppliers = () => {
               )}
 
               {/* Footer action */}
-              <button
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  try {
-                    await api.post(`/suppliers/${supplier._id}/performance/recalculate`);
-                    alert('Variability recalculated!');
-                    fetchSuppliers();
-                  } catch (err) { alert('Error: ' + err.message); }
-                }}
-                className="btn-secondary"
-                style={{ width: '100%', height: '36px', fontSize: '13px', gap: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                <RefreshCw size={13} /> Recalculate variability
-              </button>
+              {['ADMIN', 'MANAGER'].includes(user?.role) && (
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    try {
+                      await api.post(`/suppliers/${supplier._id}/performance/recalculate`);
+                      alert('Variability recalculated!');
+                      fetchSuppliers();
+                    } catch (err) { alert('Error: ' + err.message); }
+                  }}
+                  className="btn-secondary"
+                  style={{ width: '100%', height: '36px', fontSize: '13px', gap: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <RefreshCw size={13} /> Recalculate variability
+                </button>
+              )}
             </div>
           ))}
         </div>

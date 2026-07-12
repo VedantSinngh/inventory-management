@@ -1,6 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { InventoryContext } from '../context/InventoryContext';
 import CreateOrderModal from '../components/CreateOrderModal';
+import { AuthContext } from '../context/AuthContext';
 import { ChevronDown, ChevronUp, Plus, Check, X } from 'lucide-react';
 
 const renderStatusBadge = (status) => {
@@ -15,6 +16,7 @@ const renderStatusBadge = (status) => {
 
 const Orders = () => {
   const { orders, api, fetchOrders, fetchProducts } = useContext(InventoryContext);
+  const { user } = useContext(AuthContext);
   const [selectedId, setSelectedId]   = useState(null);
   const [modalType, setModalType]     = useState(null);
   const [activeTab, setActiveTab]     = useState('ALL');
@@ -57,20 +59,24 @@ const Orders = () => {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <button
-            className="btn-secondary"
-            style={{ height: '40px', padding: '0 18px', fontSize: '14px' }}
-            onClick={() => setModalType('PURCHASE')}
-          >
-            New purchase order
-          </button>
-          <button
-            className="btn-primary"
-            style={{ height: '40px', padding: '0 18px', fontSize: '14px', gap: '6px', display: 'inline-flex', alignItems: 'center' }}
-            onClick={() => setModalType('SALES')}
-          >
-            <Plus size={14} /> New sales order
-          </button>
+          {['ADMIN', 'MANAGER'].includes(user?.role) && (
+            <>
+              <button
+                className="btn-secondary"
+                style={{ height: '40px', padding: '0 18px', fontSize: '14px' }}
+                onClick={() => setModalType('PURCHASE')}
+              >
+                New purchase order
+              </button>
+              <button
+                className="btn-primary"
+                style={{ height: '40px', padding: '0 18px', fontSize: '14px', gap: '6px', display: 'inline-flex', alignItems: 'center' }}
+                onClick={() => setModalType('SALES')}
+              >
+                <Plus size={14} /> New sales order
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -229,7 +235,7 @@ const Orders = () => {
                               </table>
 
                               <div style={{ display: 'flex', gap: '8px', paddingTop: '12px', borderTop: '1px solid var(--color-hairline)' }}>
-                                {order.status === 'PENDING' && (
+                                {order.status === 'PENDING' && ['ADMIN', 'MANAGER'].includes(user?.role) && (
                                   <>
                                     <button
                                       className="btn-primary"
@@ -247,7 +253,7 @@ const Orders = () => {
                                     </button>
                                   </>
                                 )}
-                                {order.status === 'APPROVED' && (
+                                {order.status === 'APPROVED' && ['ADMIN', 'MANAGER'].includes(user?.role) && (
                                   <button
                                     className="btn-primary"
                                     style={{ height: '34px', padding: '0 14px', fontSize: '13px', gap: '5px', display: 'inline-flex', alignItems: 'center' }}

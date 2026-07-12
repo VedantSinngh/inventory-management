@@ -23,7 +23,7 @@ const validateWarehouseCreate = [
 ];
 
 // Get all warehouses
-router.get('/', protect, async (req, res) => {
+router.get('/', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -77,7 +77,7 @@ router.post('/', protect, authorize('ADMIN'), validateWarehouseCreate, async (re
 });
 
 // Get single warehouse with stock summary
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const warehouse = await Warehouse.findOne({ _id: req.params.id, deletedAt: null });
 
@@ -110,7 +110,7 @@ router.get('/:id', protect, async (req, res) => {
 });
 
 // Get stock in warehouse
-router.get('/:id/stock', protect, async (req, res) => {
+router.get('/:id/stock', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const products = await Product.find({
       warehouse: req.params.id,

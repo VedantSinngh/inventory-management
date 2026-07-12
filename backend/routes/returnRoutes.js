@@ -12,7 +12,7 @@ const router = express.Router();
  * POST /api/returns
  * Request a new return
  */
-router.post('/', protect, async (req, res) => {
+router.post('/', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const { originalOrderId, productId, quantity, reasonCode, notes } = req.body;
 
@@ -49,7 +49,7 @@ router.post('/', protect, async (req, res) => {
  * GET /api/returns
  * List all returns
  */
-router.get('/', protect, async (req, res) => {
+router.get('/', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const returns = await Return.find()
       .populate('originalOrder')
@@ -65,7 +65,7 @@ router.get('/', protect, async (req, res) => {
  * PATCH /api/returns/:id/process
  * Run inspection and process disposition
  */
-router.patch('/:id/process', protect, authorize(['ADMIN', 'MANAGER']), async (req, res) => {
+router.patch('/:id/process', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const { isDamaged, isSealed, supplierLiable, notes } = req.body;
     const returnRecord = await Return.findById(req.params.id);

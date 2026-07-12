@@ -2,12 +2,12 @@ import express from 'express';
 import CycleCount from '../models/CycleCount.js';
 import Warehouse from '../models/Warehouse.js';
 import Product from '../models/Product.js';
-import { protect } from '../middleware/auth.js';
+import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // Get all cycle counts with pagination and filters
-router.get('/', protect, async (req, res) => {
+router.get('/', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const { page = 1, limit = 20, status, warehouse, type } = req.query;
     
@@ -43,7 +43,7 @@ router.get('/', protect, async (req, res) => {
 });
 
 // Get cycle count by ID
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const cycleCount = await CycleCount.findById(req.params.id)
       .populate('warehouse', 'name code')
@@ -65,7 +65,7 @@ router.get('/:id', protect, async (req, res) => {
 });
 
 // Create new cycle count
-router.post('/', protect, async (req, res) => {
+router.post('/', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const {
       warehouse,
@@ -106,7 +106,7 @@ router.post('/', protect, async (req, res) => {
 });
 
 // Update cycle count
-router.put('/:id', protect, async (req, res) => {
+router.put('/:id', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const { status, assignedTo, priority, recurrence, completedDate } = req.body;
 
@@ -133,7 +133,7 @@ router.put('/:id', protect, async (req, res) => {
 });
 
 // Add item to cycle count
-router.post('/:id/items', protect, async (req, res) => {
+router.post('/:id/items', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const { product, batch, location, systemQuantity } = req.body;
 
@@ -162,7 +162,7 @@ router.post('/:id/items', protect, async (req, res) => {
 });
 
 // Update item count
-router.put('/:id/items/:itemIndex', protect, async (req, res) => {
+router.put('/:id/items/:itemIndex', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const { countedQuantity, discrepancyReason, notes } = req.body;
     const { id, itemIndex } = req.params;
@@ -201,7 +201,7 @@ router.put('/:id/items/:itemIndex', protect, async (req, res) => {
 });
 
 // Complete cycle count
-router.post('/:id/complete', protect, async (req, res) => {
+router.post('/:id/complete', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const cycleCount = await CycleCount.findById(req.params.id);
     if (!cycleCount) {
@@ -229,7 +229,7 @@ router.post('/:id/complete', protect, async (req, res) => {
 });
 
 // Delete cycle count
-router.delete('/:id', protect, async (req, res) => {
+router.delete('/:id', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const cycleCount = await CycleCount.findByIdAndDelete(req.params.id);
     if (!cycleCount) {
@@ -243,7 +243,7 @@ router.delete('/:id', protect, async (req, res) => {
 });
 
 // Get cycle count statistics
-router.get('/stats/summary', protect, async (req, res) => {
+router.get('/stats/summary', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const stats = await CycleCount.aggregate([
       {

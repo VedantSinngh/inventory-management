@@ -12,7 +12,7 @@ const router = express.Router();
  * Get prioritized reorder queue using Min-Heap
  * Ranked by urgency: days to stockout, demand, lead time
  */
-router.get('/priority', protect, authorize(['ADMIN', 'MANAGER']), async (req, res) => {
+router.get('/priority', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
 
@@ -73,7 +73,7 @@ router.get('/priority', protect, authorize(['ADMIN', 'MANAGER']), async (req, re
  * GET /api/reorders/priority/summary
  * Get summary of reorder urgency (CRITICAL, HIGH, MEDIUM)
  */
-router.get('/priority/summary', protect, async (req, res) => {
+router.get('/priority/summary', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const products = await Product.find({
       deletedAt: null,
@@ -121,7 +121,7 @@ router.get('/priority/summary', protect, async (req, res) => {
  * GET /api/reorders/priority/product/:productId
  * Get urgency score for a specific product
  */
-router.get('/priority/product/:productId', protect, async (req, res) => {
+router.get('/priority/product/:productId', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const product = await Product.findById(req.params.productId)
       .populate('supplier', 'name leadTime rating')
@@ -179,7 +179,7 @@ router.get('/priority/product/:productId', protect, async (req, res) => {
  * Auto-create purchase orders for all CRITICAL items
  * (Admin only - safety feature)
  */
-router.post('/priority/auto-order', protect, authorize(['ADMIN']), async (req, res) => {
+router.post('/priority/auto-order', protect, authorize('ADMIN'), async (req, res) => {
   try {
     const products = await Product.find({
       deletedAt: null,
@@ -240,7 +240,7 @@ router.post('/priority/auto-order', protect, authorize(['ADMIN']), async (req, r
  * GET /api/reorders/analytics
  * Analytics on reorder performance
  */
-router.get('/analytics', protect, authorize(['ADMIN', 'MANAGER']), async (req, res) => {
+router.get('/analytics', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     // Products that had low stock in past
     const lowStockHistory = await Product.find({
@@ -274,7 +274,7 @@ router.get('/analytics', protect, authorize(['ADMIN', 'MANAGER']), async (req, r
  * GET /api/reorders/predictive
  * Calculate statistical ROP and safety stock for each product
  */
-router.get('/predictive', protect, authorize(['ADMIN', 'MANAGER']), async (req, res) => {
+router.get('/predictive', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const products = await Product.find({ deletedAt: null }).populate('supplier').lean();
     const suggestions = [];
@@ -360,7 +360,7 @@ router.get('/predictive', protect, authorize(['ADMIN', 'MANAGER']), async (req, 
  * POST /api/reorders/purchase-orders
  * Bulk generate approved purchase orders for specified reorder recommendations
  */
-router.post('/purchase-orders', protect, authorize(['ADMIN', 'MANAGER']), async (req, res) => {
+router.post('/purchase-orders', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const { items } = req.body; // Array of { productId, quantity, supplierId }
 
