@@ -101,8 +101,8 @@ jobs:
           NODE_ENV: test
           MONGO_URI: mongodb://localhost:27017/inventory-test
           JWT_SECRET: test-secret-key-minimum-32-characters-long-12345
-        run: node -e "require('./middleware/validateEnv.js'); console.log('✅ Environment validation passed')"
+        run: node --input-type=module -e "import './middleware/validateEnv.js'; console.log('✅ Environment validation passed')"
 
       - name: Validate package.json
         working-directory: backend
-        run: node -e "const pkg = require('./package.json'); console.log('✅ Valid package.json')"
+        run: node --input-type=module -e "import fs from 'fs'; const pkg = JSON.parse(fs.readFileSync('./package.json')); console.log('✅ Valid package.json')"
