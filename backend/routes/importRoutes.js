@@ -9,6 +9,8 @@ import Order from '../models/Order.js';
 import Shipment from '../models/Shipment.js';
 import Alert from '../models/Alert.js';
 import Forecast from '../models/Forecast.js';
+import CycleCount from '../models/CycleCount.js';
+import Return from '../models/Return.js';
 
 const router = express.Router();
 
@@ -36,6 +38,8 @@ router.post('/', protect, admin, async (req, res) => {
       await Shipment.deleteMany({}, { session });
       await Alert.deleteMany({}, { session });
       await Forecast.deleteMany({}, { session });
+      await CycleCount.deleteMany({}, { session });
+      await Return.deleteMany({}, { session });
     }
 
     let stats = {
@@ -46,7 +50,9 @@ router.post('/', protect, admin, async (req, res) => {
       orders: 0,
       shipments: 0,
       alerts: 0,
-      forecasts: 0
+      forecasts: 0,
+      cycleCounts: 0,
+      returns: 0
     };
 
     // Cache for suppliers and warehouses to avoid duplicate creation
@@ -57,7 +63,11 @@ router.post('/', protect, admin, async (req, res) => {
       const {
         ProductName, SKU, Category, Price, Cost, Stock, 
         SupplierName, WarehouseName, BatchQuantity, 
-        OrderQuantity, ShipmentStatus, AlertMessage, ForecastDemand
+        OrderQuantity, ShipmentStatus, AlertMessage, ForecastDemand,
+        CycleCountExpected, CycleCountActual,
+        ReturnQuantity, ReturnReason, ReturnCondition,
+        DeadStockQuantity, DeadStockDaysInactive,
+        ReorderPoint, ReorderQuantity
       } = row;
 
       if (!ProductName || !SKU || !Category) continue;
@@ -104,6 +114,12 @@ router.post('/', protect, admin, async (req, res) => {
       }
 
       // 3. Create Product
+      const isDeadStock = (Number(DeadStockQuantity) > 0 || Number(DeadStockDaysInactive) > 0);
+      const isAutoReorder = (Number(ReorderPoint) > 0 || Number(ReorderQuantity) > 0);
+      const lastSoldDate = isDeadStock && Number(DeadStockDaysInactive) > 0 
+        ? new Date(Date.now() - Number(DeadStockDaysInactive) * 24 * 60 * 60 * 1000) 
+        : new Date();
+
       const product = await Product.create([{
         name: ProductName,
         sku: SKU,
@@ -113,7 +129,12 @@ router.post('/', protect, admin, async (req, res) => {
         stock: Number(Stock) || 0,
         supplier: supplierId,
         warehouse: warehouseId,
-        lowStockThreshold: 10
+        lowStockThreshold: 10,
+        deadStock: isDeadStock,
+        lastSold: lastSoldDate,
+        autoReorder: isAutoReorder,
+        reorderPoint: Number(ReorderPoint) || 0,
+        reorderQuantity: Number(ReorderQuantity) || 0
       }], { session });
       const createdProduct = product[0];
       stats.products++;
@@ -133,6 +154,7 @@ router.post('/', protect, admin, async (req, res) => {
       }
 
       // 5 & 6. Create Order and Shipment
+      let createdOrder = null;
       if (OrderQuantity && Number(OrderQuantity) > 0) {
         const order = await Order.create([{
           orderNumber: `ORD-${SKU}-${Date.now()}`,
@@ -147,7 +169,7 @@ router.post('/', protect, admin, async (req, res) => {
           status: 'COMPLETED',
           paymentStatus: 'PAID'
         }], { session });
-        const createdOrder = order[0];
+        createdOrder = order[0];
         stats.orders++;
 
         if (ShipmentStatus) {
@@ -188,6 +210,47 @@ router.post('/', protect, admin, async (req, res) => {
           status: 'ACTIVE'
         }], { session });
         stats.forecasts++;
+      }
+
+      // 9. Create Cycle Count
+      if (CycleCountExpected !== undefined && CycleCountActual !== undefined && CycleCountExpected !== '' && CycleCountActual !== '') {
+        const expected = Number(CycleCountExpected);
+        const actual = Number(CycleCountActual);
+        await CycleCount.create([{
+          cycleCountId: `CC-${SKU}-${Date.now()}`,
+          warehouse: warehouseId,
+          status: 'COMPLETED',
+          scheduledDate: new Date(),
+          completedDate: new Date(),
+          items: [{
+            product: createdProduct._id,
+            systemQuantity: expected,
+            countedQuantity: actual,
+            discrepancy: actual - expected,
+            discrepancyReason: actual === expected ? null : 'SYSTEM_ERROR'
+          }],
+          summary: {
+            totalItems: 1,
+            countedItems: 1,
+            discrepanciesFound: actual !== expected ? 1 : 0,
+            totalDiscrepancyValue: Math.abs(actual - expected) * (Number(Cost) || 0),
+            accuracyPercentage: expected > 0 ? Math.max(0, 100 - (Math.abs(actual - expected) / expected * 100)) : 100
+          }
+        }], { session });
+        stats.cycleCounts++;
+      }
+
+      // 10. Create Return
+      if (ReturnQuantity && Number(ReturnQuantity) > 0 && createdOrder) {
+        await Return.create([{
+          returnNumber: `RET-${SKU}-${Date.now()}`,
+          originalOrder: createdOrder._id,
+          product: createdProduct._id,
+          quantity: Number(ReturnQuantity),
+          reasonCode: ReturnReason || 'DEFECTIVE',
+          disposition: ReturnCondition || 'QUARANTINE'
+        }], { session });
+        stats.returns++;
       }
     }
 

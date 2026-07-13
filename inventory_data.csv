@@ -1,0 +1,26 @@
+ProductName,SKU,Category,Price,Cost,Stock,SupplierName,WarehouseName,BatchQuantity,OrderQuantity,ShipmentStatus,AlertMessage,ForecastDemand,CycleCountExpected,CycleCountActual,CycleCountVariance,ReturnQuantity,ReturnReason,ReturnCondition,DeadStockQuantity,DeadStockDaysInactive,ReorderPoint,ReorderQuantity
+"Smart Thermostat","THERM-101","Smart Home",150.00,75.00,95,"EcoTech Industries","Main Hub",100,0,"","","",100,95,-5,0,"","","",0,20,50
+"Glass Coffee Table","TBL-202","Furniture",300.00,120.00,40,"FurniCo","Texas Depot",50,1,"DELIVERED","",0,0,0,0,1,"Damaged in transit","DAMAGED",0,0,10,20
+"Fidget Spinners","SPIN-303","Toys",5.00,1.00,200,"ToyMaker Inc","New York Hub",200,0,"","","",0,0,0,0,"","",200,180,0,0
+"AA Batteries (Pack of 48)","BATT-404","Electronics",25.00,10.00,15,"PowerSupply Inc","California Depot",50,0,"","","",0,0,0,0,"","",0,0,25,100
+"Wireless Headphones","HP-505","Electronics",89.99,45.00,120,"SoundTech","Chicago Warehouse",150,0,"","","",80,78,-2,3,"Defective product","DEFECTIVE",0,0,15,25
+"Office Desk Chair","CHAIR-606","Furniture",250.00,130.00,30,"OfficeFurnish","Miami Depot",25,0,"","","",0,0,0,0,"","",0,0,12,40
+"USB-C Cable (6ft)","CABLE-707","Accessories",12.99,4.50,500,"CableMasters","Seattle Hub",1000,2,"PENDING","",0,0,0,0,0,"","",0,0,50,200
+"LED Light Bulbs (4-pack)","LIGHT-808","Lighting",18.50,8.00,250,"BrightLite","Denver Warehouse",300,0,"","Low stock warning",120,250,248,-2,15,"Wrong item ordered","WRONG_ITEM",0,0,30,80
+"Instant Pot Duo","COOK-909","Kitchen",99.00,60.00,45,"KitchenGadgets","Boston Depot",50,3,"DELIVERED","",0,0,0,0,0,"","",0,0,20,35
+"Yoga Mat Premium","YOGA-1010","Fitness",35.00,15.00,80,"FitLife","Portland Hub",100,0,"","","",0,0,0,0,"","",0,0,10,25
+"Smartphone Screen Protector","SCREEN-1111","Accessories",15.99,3.00,600,"ProtectTech","Atlanta Depot",1000,5,"SHIPPED","",0,0,0,0,2,"Scratched","DAMAGED",0,0,40,200
+"Garden Hose 50ft","HOSE-1212","Outdoor",29.99,12.00,75,"GardenSupply","Phoenix Hub",80,0,"","","",0,0,0,0,"","",0,0,15,30
+"Bluetooth Speaker","SPEAK-1313","Electronics",45.00,20.00,60,"AudioWave","Las Vegas Depot",75,0,"","","",0,0,0,0,"","",0,0,10,20
+"Running Shoes (Men's 10)","SHOE-1414","Footwear",120.00,65.00,35,"RunFast","Orlando Hub",40,1,"DELIVERED","",0,0,0,0,1,"Wrong size","WRONG_ITEM",0,0,5,15
+"Protein Powder 5lb","PROT-1515","Health",55.00,30.00,20,"NutriMax","Dallas Depot",30,0,"","Expiring soon",0,0,0,0,"","",0,0,8,20
+"Desk Lamp LED","LAMP-1616","Office",32.00,14.00,90,"LightWorks","San Francisco Hub",100,0,"","","",0,0,0,0,"","",0,0,12,30
+"Wireless Mouse","MOUSE-1717","Electronics",25.00,10.00,150,"TechGear","Austin Depot",200,0,"","","",0,0,0,0,"","",0,0,20,50
+"Backpack Laptop","BAG-1818","Bags",65.00,35.00,45,"TravelPack","Denver Hub",50,0,"","","",0,0,0,0,"","",0,0,8,20
+"Coffee Maker 12-Cup","COFF-1919","Kitchen",79.99,40.00,25,"BrewMaster","Chicago Depot",30,2,"PENDING","",0,0,0,0,"","",0,0,5,15
+"Earbuds Wireless","EAR-2020","Electronics",30.00,12.00,100,"AudioTech","Miami Hub",120,0,"","","",0,0,0,0,"","",0,0,15,30
+"Water Bottle 32oz","BOTTLE-2121","Fitness",15.00,6.00,300,"HydrationPro","Seattle Depot",500,0,"","","",0,0,0,0,"","",0,0,25,100
+"External Hard Drive 1TB","HDD-2222","Electronics",60.00,35.00,55,"StoragePlus","Boston Hub",60,0,"","","",0,0,0,0,"","",0,0,10,20
+"Pillow Memory Foam","PILLOW-2323","Home",40.00,18.00,90,"ComfortCo","Portland Depot",100,0,"","","",0,0,0,0,"","",0,0,12,30
+"Sunglasses Polarized","SUN-2424","Accessories",75.00,30.00,40,"SunGear","Las Vegas Hub",50,0,"","","",0,0,0,0,"","",0,0,5,15
+"Bicycle Helmet","HELMET-2525","Sports",50.00,25.00,30,"SafeRide","Phoenix Depot",35,0,"","","",0,0,0,0,"","",0,0,5,15
