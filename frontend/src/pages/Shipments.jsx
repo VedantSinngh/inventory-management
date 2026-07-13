@@ -1,629 +1,938 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { InventoryContext } from '../context/InventoryContext';
-import { MapPin, Calendar, Truck, AlertCircle, CheckCircle, Navigation, Plus, X } from 'lucide-react';
-import RouteMap from '../components/RouteMap';
+import LeafletMap from '../components/LeafletMap';
+import {
+  Truck, MapPin, Calendar, Navigation, Plus, X, ChevronRight,
+  RefreshCw, AlertTriangle, Clock, Package, Search, Filter,
+  CheckCircle, AlertCircle, ArrowRight, Zap, Route
+} from 'lucide-react';
 
-const ALL_STATUSES = ['ALL', 'PREPARING', 'READY_FOR_PICKUP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'FAILED'];
-
-const STATUS_COLORS = {
-  'PREPARING': '#F59E0B',
-  'READY_FOR_PICKUP': '#3B82F6',
-  'IN_TRANSIT': '#8B5CF6',
-  'OUT_FOR_DELIVERY': '#EC4899',
-  'DELIVERED': '#10B981',
-  'FAILED': '#EF4444',
-  'RETURNED': '#6B7280'
+// ─── Constants ────────────────────────────────────────────────────────────────
+const STATUS_META = {
+  PREPARING:        { label: 'Preparing',        color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+  READY_FOR_PICKUP: { label: 'Ready for Pickup', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
+  IN_TRANSIT:       { label: 'In Transit',        color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
+  OUT_FOR_DELIVERY: { label: 'Out for Delivery',  color: '#ec4899', bg: 'rgba(236,72,153,0.1)' },
+  DELIVERED:        { label: 'Delivered',          color: '#16a34a', bg: 'rgba(22,163,74,0.1)' },
+  FAILED:           { label: 'Failed',             color: '#dc2626', bg: 'rgba(220,38,38,0.1)' },
+  RETURNED:         { label: 'Returned',           color: '#78716c', bg: 'rgba(120,113,108,0.1)' },
 };
 
-const ShipmentTracker = () => {
-  const { api } = useContext(InventoryContext);
-  const [shipments, setShipments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedShipment, setSelectedShipment] = useState(null);
-  const [filter, setFilter] = useState('ALL');
-  const [routePath, setRoutePath] = useState(null);
-  const [simulating, setSimulating] = useState(false);
-  const [optimizing, setOptimizing] = useState(false);
+const ALL_STATUSES = ['ALL', ...Object.keys(STATUS_META)];
 
-  // Create Shipment Modal
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [approvedOrders, setApprovedOrders] = useState([]);
-  const [createForm, setCreateForm] = useState({
+const CARRIERS = ['FedEx', 'UPS', 'DHL', 'DTDC', 'BlueDart', 'Delhivery', 'Ekart'];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const fmt = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '';
+
+function StatusBadge({ status }) {
+  const m = STATUS_META[status] || { label: status, color: '#78716c', bg: 'rgba(120,113,108,0.1)' };
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '5px',
+      padding: '3px 10px', borderRadius: '9999px',
+      backgroundColor: m.bg,
+      color: m.color,
+      fontSize: '11px', fontWeight: '600',
+      letterSpacing: '0.4px', textTransform: 'uppercase',
+      whiteSpace: 'nowrap',
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: m.color, display: 'inline-block', flexShrink: 0 }} />
+      {m.label}
+    </span>
+  );
+}
+
+// ─── Coordinate Picker Input ───────────────────────────────────────────────────
+function CoordInput({ label, value, onChange, pickMode, onStartPick, onClearPick }) {
+  const [manual, setManual] = useState('');
+
+  const handleManual = (e) => {
+    const v = e.target.value;
+    setManual(v);
+    // Accept "lat, lng" format
+    const parts = v.split(',').map(s => parseFloat(s.trim()));
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      onChange(parts[0], parts[1]);
+    }
+  };
+
+  // Sync from map picks
+  useEffect(() => {
+    if (value?.lat && value?.lng) {
+      setManual(`${value.lat}, ${value.lng}`);
+    }
+  }, [value?.lat, value?.lng]);
+
+  const isActive = pickMode === label.toLowerCase();
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', margin: 0 }}>
+          {label}
+        </label>
+        <button
+          type="button"
+          onClick={isActive ? onClearPick : onStartPick}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '4px',
+            padding: '3px 10px', borderRadius: '9999px',
+            border: `1px solid ${isActive ? (label === 'Origin' ? '#16a34a' : '#dc2626') : 'var(--color-hairline-strong)'}`,
+            backgroundColor: isActive ? (label === 'Origin' ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)') : 'transparent',
+            color: isActive ? (label === 'Origin' ? '#16a34a' : '#dc2626') : 'var(--color-muted)',
+            fontSize: '11px', fontWeight: '600', cursor: 'pointer',
+            transition: 'all 150ms ease',
+          }}
+        >
+          <MapPin size={10} />
+          {isActive ? 'Cancel pick' : 'Pick on map'}
+        </button>
+      </div>
+
+      <input
+        type="text"
+        value={manual}
+        onChange={handleManual}
+        placeholder="lat, lng — e.g. 28.6139, 77.2090"
+        style={{ height: '36px', fontSize: '13px', padding: '0 12px' }}
+      />
+
+      {value?.city && (
+        <div style={{ fontSize: '12px', color: 'var(--color-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <MapPin size={10} />
+          {value.city}{value.state ? `, ${value.state}` : ''}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Create Shipment Modal ─────────────────────────────────────────────────────
+function CreateShipmentModal({ api, onCreated, onClose }) {
+  const [step, setStep] = useState(1); // 1=order, 2=addresses+map, 3=details
+  const [orders, setOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
+
+  const [form, setForm] = useState({
     orderId: '',
     carrier: 'FedEx',
-    originCity: 'Mumbai',
-    originState: 'Maharashtra',
-    originCountry: 'India',
-    destCity: '',
-    destState: '',
-    destCountry: 'India',
-    destStreet: ''
+    originCity: '', originState: '', originCountry: 'India',
+    destCity: '', destState: '', destCountry: 'India',
+    weight: '',
   });
+
+  const [origin, setOrigin] = useState(null);    // {lat, lng, city}
+  const [destination, setDestination] = useState(null);
+  const [pickMode, setPickMode] = useState(null); // 'origin' or 'destination'
   const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState('');
+  const [error, setError] = useState('');
+  const [routePreview, setRoutePreview] = useState([]);
 
+  // Fetch approved orders
   useEffect(() => {
-    fetchShipments();
-  }, [filter]);
+    api.get('/orders?status=APPROVED&limit=100').then(res => {
+      const arr = res.orders || res.data?.orders || res.data || [];
+      setOrders(Array.isArray(arr) ? arr : []);
+    }).catch(() => setOrders([]))
+      .finally(() => setLoadingOrders(false));
+  }, []);
 
-  const fetchShipments = async () => {
-    try {
-      setLoading(true);
-      const url = filter === 'ALL'
-        ? `/shipments?limit=50`
-        : `/shipments?status=${filter}&limit=50`;
-      const response = await api.get(url);
-      setShipments(response.shipments || response.data?.shipments || []);
-    } catch (error) {
-      console.error('Error fetching shipments:', error);
-    } finally {
-      setLoading(false);
+  // When both coords set, fetch OSRM route preview
+  useEffect(() => {
+    if (!origin?.lat || !destination?.lat) { setRoutePreview([]); return; }
+    // Use OSRM for polyline
+    const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?geometries=geojson&overview=full`;
+    fetch(url).then(r => r.json()).then(d => {
+      const coords = d.routes?.[0]?.geometry?.coordinates || [];
+      setRoutePreview(coords.map(([lng, lat]) => ({ lat, lng })));
+    }).catch(() => setRoutePreview([]));
+  }, [origin?.lat, origin?.lng, destination?.lat, destination?.lng]);
+
+  const handleMapPick = (lat, lng) => {
+    if (pickMode === 'origin') {
+      setOrigin(prev => ({ ...prev, lat, lng }));
+      setForm(f => ({ ...f, originCity: `${lat.toFixed(4)}, ${lng.toFixed(4)}` }));
+      // Reverse geocode
+      fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`, {
+        headers: { 'User-Agent': 'StockIMS/1.0' }
+      }).then(r => r.json()).then(d => {
+        const city = d.address?.city || d.address?.town || d.address?.village || '';
+        const state = d.address?.state || '';
+        setOrigin(prev => ({ ...prev, city, state }));
+        setForm(f => ({ ...f, originCity: city || f.originCity, originState: state }));
+      }).catch(() => {});
+    } else if (pickMode === 'destination') {
+      setDestination(prev => ({ ...prev, lat, lng }));
+      setForm(f => ({ ...f, destCity: `${lat.toFixed(4)}, ${lng.toFixed(4)}` }));
+      fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`, {
+        headers: { 'User-Agent': 'StockIMS/1.0' }
+      }).then(r => r.json()).then(d => {
+        const city = d.address?.city || d.address?.town || d.address?.village || '';
+        const state = d.address?.state || '';
+        setDestination(prev => ({ ...prev, city, state }));
+        setForm(f => ({ ...f, destCity: city || f.destCity, destState: state }));
+      }).catch(() => {});
     }
   };
 
-  const fetchApprovedOrders = async () => {
+  const geocodeCity = async (cityStr, field) => {
+    if (!cityStr || cityStr.trim().length < 2) return;
     try {
-      const res = await api.get('/orders?status=APPROVED&limit=50');
-      const orders = res.orders || res.data?.orders || res.data || [];
-      setApprovedOrders(Array.isArray(orders) ? orders : []);
-    } catch (e) {
-      console.error('Error fetching approved orders:', e);
-      setApprovedOrders([]);
-    }
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityStr)}&format=json&limit=1`, {
+        headers: { 'User-Agent': 'StockIMS/1.0' }
+      });
+      const data = await res.json();
+      if (data?.[0]) {
+        const lat = parseFloat(data[0].lat);
+        const lng = parseFloat(data[0].lon);
+        if (field === 'origin') setOrigin({ lat, lng, city: cityStr });
+        else setDestination({ lat, lng, city: cityStr });
+      }
+    } catch {}
   };
 
-  const openCreateModal = () => {
-    fetchApprovedOrders();
-    setCreateForm({
-      orderId: '',
-      carrier: 'FedEx',
-      originCity: 'Mumbai',
-      originState: 'Maharashtra',
-      originCountry: 'India',
-      destCity: '',
-      destState: '',
-      destCountry: 'India',
-      destStreet: ''
-    });
-    setCreateError('');
-    setShowCreateModal(true);
-  };
-
-  const handleCreateShipment = async (e) => {
-    e.preventDefault();
-    if (!createForm.orderId) {
-      setCreateError('Please select an order');
-      return;
-    }
-    if (!createForm.destCity) {
-      setCreateError('Please enter a destination city');
-      return;
-    }
-
-    setCreating(true);
-    setCreateError('');
+  const handleSubmit = async () => {
+    if (!form.orderId) { setError('Select an order'); return; }
+    if (!form.destCity && !destination?.lat) { setError('Set a destination'); return; }
+    setCreating(true); setError('');
     try {
-      await api.post('/shipments', {
-        orderId: createForm.orderId,
-        carrier: createForm.carrier,
+      const body = {
+        orderId: form.orderId,
+        carrier: form.carrier,
         originAddress: {
-          city: createForm.originCity,
-          state: createForm.originState,
-          country: createForm.originCountry
+          city: form.originCity || origin?.city,
+          state: form.originState,
+          country: form.originCountry,
+          latitude: origin?.lat,
+          longitude: origin?.lng,
         },
         destinationAddress: {
-          street: createForm.destStreet,
-          city: createForm.destCity,
-          state: createForm.destState,
-          country: createForm.destCountry
-        }
-      });
-      setShowCreateModal(false);
-      setFilter('PREPARING');
-      fetchShipments();
-    } catch (error) {
-      setCreateError(error.message || 'Failed to create shipment');
+          city: form.destCity || destination?.city,
+          state: form.destState,
+          country: form.destCountry,
+          latitude: destination?.lat,
+          longitude: destination?.lng,
+        },
+        weight: form.weight ? parseFloat(form.weight) : undefined,
+      };
+      await api.post('/shipments', body);
+      onCreated();
+    } catch (e) {
+      setError(e.message || 'Failed to create shipment');
     } finally {
       setCreating(false);
     }
   };
 
-  const optimizeRoute = async (shipmentId) => {
-    setOptimizing(true);
+  return (
+    <div style={{
+      position: 'fixed', inset: 0,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+      zIndex: 2000, padding: '40px 20px',
+      overflowY: 'auto',
+    }}>
+      <div style={{
+        backgroundColor: 'var(--color-surface-card)',
+        borderRadius: 'var(--rounded-xl)',
+        border: '1px solid var(--color-hairline)',
+        width: '100%', maxWidth: '780px',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
+        overflow: 'hidden',
+      }}>
+        {/* Header */}
+        <div style={{ padding: '24px 28px 20px', borderBottom: '1px solid var(--color-hairline)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '22px', fontWeight: '300', marginBottom: '2px' }}>New Shipment</h2>
+            <p style={{ fontSize: '13px', color: 'var(--color-muted)', margin: 0 }}>Geocoding and routing done automatically via OpenStreetMap</p>
+          </div>
+          <button onClick={onClose} style={{ color: 'var(--color-muted)', padding: '6px', borderRadius: '6px', display: 'flex' }}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+          {/* Row 1: Order + Carrier */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', margin: 0 }}>
+                Order *
+              </label>
+              <select
+                value={form.orderId}
+                onChange={e => setForm(f => ({ ...f, orderId: e.target.value }))}
+                style={{ height: '36px', fontSize: '13px' }}
+              >
+                <option value="">
+                  {loadingOrders ? 'Loading orders…' : '— select approved order —'}
+                </option>
+                {orders.map(o => (
+                  <option key={o._id} value={o._id}>
+                    #{o._id?.slice(-6)?.toUpperCase()} · {o.type || 'Order'} · ₹{o.totalAmount?.toLocaleString() || 0}
+                  </option>
+                ))}
+                {!loadingOrders && orders.length === 0 && (
+                  <option disabled>No approved orders — approve an order first</option>
+                )}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', margin: 0 }}>
+                Carrier
+              </label>
+              <select
+                value={form.carrier}
+                onChange={e => setForm(f => ({ ...f, carrier: e.target.value }))}
+                style={{ height: '36px', fontSize: '13px' }}
+              >
+                {CARRIERS.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Map */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--color-muted)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+              Route on Map
+            </div>
+            <LeafletMap
+              origin={origin}
+              destination={destination}
+              routeCoords={routePreview}
+              pickMode={pickMode}
+              onPick={handleMapPick}
+              height="280px"
+            />
+          </div>
+
+          {/* Coord pickers */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <CoordInput
+                label="Origin"
+                value={origin}
+                onChange={(lat, lng) => setOrigin(prev => ({ ...prev, lat, lng }))}
+                pickMode={pickMode}
+                onStartPick={() => setPickMode('origin')}
+                onClearPick={() => setPickMode(null)}
+              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <input
+                  type="text"
+                  value={form.originCity}
+                  onChange={e => setForm(f => ({ ...f, originCity: e.target.value }))}
+                  onBlur={e => geocodeCity(e.target.value, 'origin')}
+                  placeholder="City name (auto-geocodes)"
+                  style={{ height: '36px', fontSize: '13px', padding: '0 12px' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <CoordInput
+                label="Destination"
+                value={destination}
+                onChange={(lat, lng) => setDestination(prev => ({ ...prev, lat, lng }))}
+                pickMode={pickMode}
+                onStartPick={() => setPickMode('destination')}
+                onClearPick={() => setPickMode(null)}
+              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <input
+                  type="text"
+                  value={form.destCity}
+                  onChange={e => setForm(f => ({ ...f, destCity: e.target.value }))}
+                  onBlur={e => geocodeCity(e.target.value, 'destination')}
+                  placeholder="City name (auto-geocodes)"
+                  style={{ height: '36px', fontSize: '13px', padding: '0 12px' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Row 3: Weight */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px', alignItems: 'end' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', margin: 0 }}>
+                Weight (kg)
+              </label>
+              <input
+                type="number"
+                value={form.weight}
+                onChange={e => setForm(f => ({ ...f, weight: e.target.value }))}
+                placeholder="e.g. 12.5"
+                style={{ height: '36px', fontSize: '13px', padding: '0 12px' }}
+              />
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--color-muted)', lineHeight: '1.6' }}>
+              Addresses are automatically geocoded via OpenStreetMap Nominatim.
+              Route and ETA are calculated using OSRM free routing.
+            </div>
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', backgroundColor: 'rgba(220,38,38,0.08)', borderRadius: 'var(--rounded-md)', border: '1px solid rgba(220,38,38,0.2)', color: '#dc2626', fontSize: '13px' }}>
+              <AlertTriangle size={14} /> {error}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '16px 28px', borderTop: '1px solid var(--color-hairline)', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            className="btn-secondary"
+            style={{ height: '38px', padding: '0 20px', fontSize: '13px' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={creating}
+            className="btn-primary"
+            style={{ height: '38px', padding: '0 24px', fontSize: '13px', opacity: creating ? 0.7 : 1 }}
+          >
+            {creating ? 'Creating…' : 'Create Shipment'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Route Optimizer Panel ─────────────────────────────────────────────────────
+function RouteOptimizerPanel({ shipment, api, onClose }) {
+  const [optimizing, setOptimizing] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  const [criterion, setCriterion] = useState('COST');
+  const [routeCoords, setRouteCoords] = useState([]);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  const hasCoords = shipment?.originAddress?.latitude && shipment?.destinationAddress?.latitude;
+
+  // Build Dijkstra node map from result
+  const dijkstraNodes = result ? (() => {
+    const m = new Map();
+    if (result.startNode) m.set(result.startNode.id, result.startNode);
+    if (result.endNode) m.set(result.endNode.id, result.endNode);
+    (result.stopsSequence || []).forEach(s => m.set(s.nodeId, { ...s, id: s.nodeId }));
+    return m;
+  })() : null;
+
+  const optimize = async () => {
+    setOptimizing(true); setError(''); setResult(null);
     try {
-      const resData = await api.post(`/routes/shipment/${shipmentId}/optimize`, { criterion: 'COST' });
-      // The API client returns raw JSON; response is { data: optimalPath, pagination: null }
-      const pathData = resData?.data || resData;
-      if (pathData && (pathData.startNode !== undefined || pathData.path !== undefined)) {
-        setRoutePath(pathData);
-      } else {
-        console.warn('Optimize returned unexpected shape:', resData);
+      const res = await api.post(`/routes/shipment/${shipment._id}/optimize`, { criterion });
+      const data = res.data || res;
+      setResult(data);
+
+      // Also fetch OSRM polyline between origin and destination
+      if (shipment.originAddress?.latitude && shipment.destinationAddress?.latitude) {
+        const oLng = shipment.originAddress.longitude;
+        const oLat = shipment.originAddress.latitude;
+        const dLng = shipment.destinationAddress.longitude;
+        const dLat = shipment.destinationAddress.latitude;
+        const url = `https://router.project-osrm.org/route/v1/driving/${oLng},${oLat};${dLng},${dLat}?geometries=geojson&overview=full`;
+        fetch(url).then(r => r.json()).then(d => {
+          const coords = d.routes?.[0]?.geometry?.coordinates || [];
+          setRouteCoords(coords.map(([lng, lat]) => ({ lat, lng })));
+        }).catch(() => {});
       }
-    } catch (error) {
-      console.error('Error optimizing shipment route:', error);
+    } catch (e) {
+      setError(e.message || 'Optimization failed');
     } finally {
       setOptimizing(false);
     }
   };
 
-  const handleDynamicReroute = async (shipmentId, outOfStockWarehouseId, productId) => {
+  const updateStatus = async (newStatus) => {
+    setUpdatingStatus(true);
     try {
-      const data = await api.post('/routes/reroute', {
-        shipmentId,
-        outOfStockWarehouseId,
-        productId
-      });
-      alert('Shipment successfully re-routed to alternative warehouse: ' + (data.alternativeWarehouse?.name || 'N/A'));
-      fetchShipments();
-      setSelectedShipment(null);
-      setRoutePath(null);
-    } catch (error) {
-      alert('Failed to re-route: ' + error.message);
+      await api.put(`/shipments/${shipment._id}/status`, { status: newStatus });
+    } catch (e) {
+      alert('Status update failed: ' + e.message);
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
-  const toggleSimulation = async (shipmentId) => {
-    try {
-      if (simulating) {
-        await api.post(`/shipments/${shipmentId}/simulate/stop`);
-        setSimulating(false);
-      } else {
-        await api.post(`/shipments/${shipmentId}/simulate/start`);
-        setSimulating(true);
-        alert('Simulation started! The truck will now move automatically on the map.');
-      }
-    } catch (error) {
-      console.error('Simulation toggle failed:', error);
-      alert('Simulation error: ' + error.message);
-    }
-  };
+  const originCoord = shipment?.originAddress?.latitude ? {
+    lat: shipment.originAddress.latitude,
+    lng: shipment.originAddress.longitude,
+    label: shipment.originAddress.city || 'Origin',
+  } : null;
 
-  const getStatusColor = (status) => STATUS_COLORS[status] || '#6B7280';
+  const destCoord = shipment?.destinationAddress?.latitude ? {
+    lat: shipment.destinationAddress.latitude,
+    lng: shipment.destinationAddress.longitude,
+    label: shipment.destinationAddress.city || 'Destination',
+  } : null;
 
-  const getWeatherIcon = (weather) => {
-    switch (weather?.severity) {
-      case 'HIGH': return '⛈️';
-      case 'MEDIUM': return '🌧️';
-      case 'LOW': return '⚠️';
-      default: return '✅';
-    }
-  };
+  const liveCoord = shipment?.currentLocation?.latitude ? {
+    lat: shipment.currentLocation.latitude,
+    lng: shipment.currentLocation.longitude,
+  } : null;
 
   return (
-    <div style={{ padding: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '28px', margin: 0 }}>Live Shipment Tracking</h1>
-        <button
-          onClick={openCreateModal}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '8px',
-            padding: '10px 18px',
-            backgroundColor: 'var(--color-accent)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '14px'
-          }}
-        >
-          <Plus size={16} /> Create Shipment
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ fontWeight: '600', fontSize: '15px', color: 'var(--color-ink)' }}>{shipment.trackingNumber}</div>
+          <div style={{ fontSize: '12px', color: 'var(--color-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Truck size={11} />{shipment.carrier}
+            <span style={{ margin: '0 4px', opacity: 0.4 }}>·</span>
+            <StatusBadge status={shipment.status} />
+          </div>
+        </div>
+        <button onClick={onClose} style={{ color: 'var(--color-muted)', padding: '4px', display: 'flex', borderRadius: '4px' }}>
+          <X size={16} />
         </button>
       </div>
 
-      {/* Route map visualization area */}
-      {routePath && (
-        <div style={{ marginBottom: '25px' }}>
-          {optimizing && <div style={{ padding: '10px', color: 'var(--color-text-secondary)', textAlign: 'center' }}>Calculating optimal route with live traffic... 🔄</div>}
-          <RouteMap pathData={routePath} />
-        </div>
-      )}
-      {optimizing && !routePath && (
-        <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-bg-secondary)', borderRadius: '8px', marginBottom: '16px' }}>
-          Calculating optimal route with live traffic... 🔄
-        </div>
-      )}
-
-      {/* Status Filters */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', overflowX: 'auto', paddingBottom: '4px' }}>
-        {ALL_STATUSES.map(status => (
-          <button
-            key={status}
-            onClick={() => {
-              setFilter(status);
-              setRoutePath(null);
-              setSelectedShipment(null);
-            }}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: filter === status ? 'var(--color-accent)' : 'var(--color-bg-secondary)',
-              color: filter === status ? 'white' : 'var(--color-text-heading)',
-              border: '1px solid var(--color-border)',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '13px',
-              whiteSpace: 'nowrap',
-              fontWeight: filter === status ? '600' : '400'
-            }}
-          >
-            {status === 'ALL' ? '📦 All' : status.replace(/_/g, ' ')}
-          </button>
-        ))}
-      </div>
-
-      {/* Shipments Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '16px' }}>
-        {loading ? (
-          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px', color: 'var(--color-text-secondary)' }}>
-            Loading shipments...
-          </div>
-        ) : shipments.length === 0 ? (
-          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px', color: 'var(--color-text-secondary)' }}>
-            <Truck size={40} style={{ marginBottom: '12px', opacity: 0.4 }} />
-            <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '8px' }}>No shipments found</div>
-            <div style={{ fontSize: '13px', marginBottom: '16px' }}>
-              {filter !== 'ALL' ? `No shipments with status "${filter.replace(/_/g, ' ')}". Try switching to "All".` : 'Create your first shipment by approving an order and clicking "Create Shipment".'}
-            </div>
-            <button
-              onClick={openCreateModal}
-              style={{ padding: '10px 20px', backgroundColor: 'var(--color-accent)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
-            >
-              + Create Shipment
-            </button>
-          </div>
-        ) : (
-          shipments.map(shipment => (
-            <div
-              key={shipment._id}
-              className="card"
-              onClick={() => {
-                setSelectedShipment(shipment);
-                optimizeRoute(shipment._id);
-              }}
-              style={{
-                cursor: 'pointer',
-                borderLeft: `4px solid ${getStatusColor(shipment.status)}`,
-                transition: 'all 0.2s ease',
-                transform: selectedShipment?._id === shipment._id ? 'scale(1.02)' : 'scale(1)',
-                padding: '16px',
-                outline: selectedShipment?._id === shipment._id ? `2px solid ${getStatusColor(shipment.status)}` : 'none'
-              }}
-            >
-              {/* Tracking Number + Status */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <h3 style={{ fontSize: '15px', fontWeight: '600', margin: 0 }}>{shipment.trackingNumber}</h3>
-                <span style={{
-                  padding: '3px 10px',
-                  backgroundColor: getStatusColor(shipment.status),
-                  color: 'white',
-                  borderRadius: '3px',
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  textTransform: 'uppercase'
-                }}>
-                  {shipment.status?.replace(/_/g, ' ')}
-                </span>
-              </div>
-
-              {/* Basic Info */}
-              <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                  <Truck size={13} />
-                  <span>{shipment.carrier || 'N/A'}</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                  <MapPin size={13} />
-                  <span>
-                    {shipment.originAddress?.city || '—'} → {shipment.destinationAddress?.city || 'N/A'}
-                  </span>
-                </div>
-                {shipment.estimatedDeliveryDate && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Calendar size={13} />
-                    <span>ETA: {new Date(shipment.estimatedDeliveryDate).toLocaleDateString()}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Current Location */}
-              {shipment.currentLocation && (
-                <div style={{
-                  backgroundColor: 'var(--color-bg-secondary)',
-                  padding: '8px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  marginBottom: '10px'
-                }}>
-                  <div style={{ color: 'var(--color-text-secondary)', marginBottom: '3px' }}>Current Location:</div>
-                  <div style={{ fontWeight: '500' }}>
-                    {shipment.currentLocation.address || `${shipment.currentLocation.latitude?.toFixed(4)}, ${shipment.currentLocation.longitude?.toFixed(4)}`}
-                  </div>
-                </div>
-              )}
-
-              {/* Weather Impact */}
-              {shipment.weatherImpact?.hasImpact && (
-                <div style={{
-                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                  padding: '8px',
-                  borderRadius: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  fontSize: '12px',
-                  marginBottom: '10px'
-                }}>
-                  <span>{getWeatherIcon(shipment.weatherImpact)}</span>
-                  <div>
-                    <div style={{ fontWeight: '500' }}>Weather: {shipment.weatherImpact.severity}</div>
-                    {shipment.weatherImpact.estimatedDelayHours > 0 && (
-                      <div style={{ color: 'var(--color-text-secondary)' }}>+{shipment.weatherImpact.estimatedDelayHours}h delay</div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Coordinates indicator */}
-              {shipment.originAddress?.latitude && (
-                <div style={{ fontSize: '11px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Navigation size={10} /> GPS coordinates available — click to optimize route
-                </div>
-              )}
-              {!shipment.originAddress?.latitude && (
-                <div style={{ fontSize: '11px', color: '#ef4444' }}>
-                  ⚠ No GPS coordinates — route optimization unavailable
-                </div>
-              )}
-            </div>
-          ))
+      {/* Route path display */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', backgroundColor: 'var(--color-surface-soft)', borderRadius: 'var(--rounded-md)', fontSize: '13px' }}>
+        <span style={{ color: '#16a34a', fontWeight: '600', fontSize: '12px' }}>
+          {shipment.originAddress?.city || '—'}
+        </span>
+        <ArrowRight size={12} style={{ color: 'var(--color-muted)' }} />
+        <span style={{ color: '#dc2626', fontWeight: '600', fontSize: '12px' }}>
+          {shipment.destinationAddress?.city || '—'}
+        </span>
+        {shipment.estimatedDeliveryDate && (
+          <>
+            <span style={{ marginLeft: 'auto', color: 'var(--color-muted)', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Calendar size={10} /> ETA {fmt(shipment.estimatedDeliveryDate)}
+            </span>
+          </>
         )}
       </div>
 
-      {/* Detailed Side Panel */}
-      {selectedShipment && (
-        <div style={{
-          position: 'fixed',
-          bottom: '20px',
-          right: '20px',
-          width: '350px',
-          maxHeight: '80vh',
-          backgroundColor: 'var(--color-bg-secondary)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '10px',
-          padding: '16px',
-          overflowY: 'auto',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
-          zIndex: 1000
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: '600', margin: 0 }}>Shipment Details</h3>
-            <button
-              onClick={() => {
-                setSelectedShipment(null);
-                setRoutePath(null);
-              }}
-              style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--color-text-secondary)', lineHeight: 1 }}
-            >
-              <X size={18} />
-            </button>
-          </div>
+      {/* Live Map */}
+      <LeafletMap
+        origin={originCoord}
+        destination={destCoord}
+        routeCoords={routeCoords}
+        liveLocation={liveCoord}
+        dijkstraPath={result?.path || []}
+        dijkstraNodes={dijkstraNodes}
+        height="300px"
+      />
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '3px' }}>Tracking</div>
-              <div style={{ fontSize: '14px', fontWeight: '600' }}>{selectedShipment.trackingNumber}</div>
-            </div>
-
-            <div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '3px' }}>Route</div>
-              <div style={{ fontSize: '13px' }}>
-                {selectedShipment.originAddress?.city || 'Origin'} → {selectedShipment.destinationAddress?.city || 'Destination'}
-              </div>
-              {selectedShipment.originAddress?.latitude ? (
-                <div style={{ fontSize: '11px', color: '#10b981', marginTop: '3px' }}>
-                  ✓ Coordinates: ({selectedShipment.originAddress.latitude.toFixed(3)}, {selectedShipment.originAddress.longitude.toFixed(3)}) → ({selectedShipment.destinationAddress.latitude?.toFixed(3)}, {selectedShipment.destinationAddress.longitude?.toFixed(3)})
-                </div>
-              ) : (
-                <div style={{ fontSize: '11px', color: '#ef4444', marginTop: '3px' }}>⚠ No GPS coordinates stored</div>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-              <button
-                onClick={() => optimizeRoute(selectedShipment._id)}
-                disabled={optimizing || !selectedShipment.originAddress?.latitude}
-                style={{
-                  flex: 1, padding: '9px', fontSize: '12px', cursor: optimizing || !selectedShipment.originAddress?.latitude ? 'not-allowed' : 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
-                  opacity: (!selectedShipment.originAddress?.latitude) ? 0.5 : 1,
-                  borderRadius: '4px'
-                }}
-              >
-                <Navigation size={12} /> {optimizing ? 'Optimizing...' : 'Optimize Route'}
-              </button>
-
-              <button
-                onClick={() => handleDynamicReroute(
-                  selectedShipment._id,
-                  selectedShipment.originAddress?._id || selectedShipment.originAddress,
-                  selectedShipment.items?.[0]?.product?._id || selectedShipment.items?.[0]?.product
-                )}
-                style={{ flex: 1, padding: '9px', fontSize: '12px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-              >
-                Stockout Re-route
-              </button>
-            </div>
-
-            {selectedShipment.status === 'IN_TRANSIT' && (
-              <button
-                onClick={() => toggleSimulation(selectedShipment._id)}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  fontSize: '14px',
-                  backgroundColor: simulating ? '#EF4444' : '#10B981',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-              >
-                {simulating ? '🛑 Stop Simulation' : '🚀 Start Live Simulation'}
-              </button>
-            )}
-
-            {selectedShipment.driverInfo && (
-              <div style={{ fontSize: '13px', backgroundColor: 'var(--color-bg-primary)', padding: '10px', borderRadius: '6px' }}>
-                <div style={{ color: 'var(--color-text-secondary)', marginBottom: '4px', fontSize: '12px' }}>Driver</div>
-                <div style={{ fontWeight: '500' }}>{selectedShipment.driverInfo.name}</div>
-                <div style={{ color: 'var(--color-text-secondary)', fontSize: '12px' }}>{selectedShipment.driverInfo.phone}</div>
-              </div>
-            )}
-
-            {selectedShipment.cost && (
-              <div>
-                <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '3px' }}>Shipping Cost</div>
-                <div style={{ fontSize: '16px', fontWeight: '700', color: '#10b981' }}>${selectedShipment.cost.total || selectedShipment.cost}</div>
-              </div>
-            )}
-          </div>
+      {/* No coords warning */}
+      {!hasCoords && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', backgroundColor: 'rgba(245,158,11,0.08)', borderRadius: 'var(--rounded-md)', border: '1px solid rgba(245,158,11,0.2)', color: '#d97706', fontSize: '12px' }}>
+          <AlertTriangle size={13} />
+          No GPS coordinates — route optimization unavailable. Create a new shipment with map-picked coordinates.
         </div>
       )}
 
-      {/* Create Shipment Modal */}
-      {showCreateModal && (
-        <div style={{
-          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 2000, padding: '20px'
-        }}>
-          <div style={{
-            backgroundColor: 'var(--color-bg-secondary)',
-            borderRadius: '12px',
-            padding: '28px',
-            width: '100%',
-            maxWidth: '520px',
-            border: '1px solid var(--color-border)',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.4)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '700' }}>Create New Shipment</h2>
-              <button onClick={() => setShowCreateModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}>
-                <X size={22} />
-              </button>
+      {/* Optimizer controls */}
+      {hasCoords && (
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <select
+            value={criterion}
+            onChange={e => setCriterion(e.target.value)}
+            style={{ height: '36px', fontSize: '12px', flex: 1 }}
+          >
+            <option value="COST">Minimize Cost</option>
+            <option value="TIME">Minimize Time</option>
+            <option value="DISTANCE">Minimize Distance</option>
+          </select>
+          <button
+            onClick={optimize}
+            disabled={optimizing}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '0 16px', height: '36px',
+              backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)',
+              borderRadius: 'var(--rounded-md)', border: 'none',
+              fontSize: '12px', fontWeight: '600', cursor: optimizing ? 'not-allowed' : 'pointer',
+              opacity: optimizing ? 0.7 : 1, whiteSpace: 'nowrap',
+              transition: 'opacity 150ms',
+            }}
+          >
+            {optimizing ? <><RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} /> Optimizing…</> : <><Zap size={12} /> Run Dijkstra</>}
+          </button>
+        </div>
+      )}
+
+      {/* Optimization result */}
+      {result && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+            Optimal Route · {result.criterion}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+            {[
+              { label: 'Distance', value: `${isFinite(result.totalDistance) ? Number(result.totalDistance).toFixed(1) : '—'} km` },
+              { label: 'Travel Time', value: `${isFinite(result.totalTime) ? Number(result.totalTime).toFixed(0) : '—'} min` },
+              { label: 'Cost', value: `$${isFinite(result.totalCost) ? Number(result.totalCost).toFixed(2) : '—'}` },
+            ].map(m => (
+              <div key={m.label} style={{ padding: '10px 12px', backgroundColor: 'var(--color-surface-soft)', borderRadius: 'var(--rounded-md)', textAlign: 'center' }}>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--color-ink)', marginBottom: '2px' }}>{m.value}</div>
+                <div style={{ fontSize: '10px', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{m.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {result.totalTrafficDelay > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#d97706', padding: '6px 10px', backgroundColor: 'rgba(217,119,6,0.08)', borderRadius: 'var(--rounded-sm)' }}>
+              🚦 Live traffic delay: +{Math.round(result.totalTrafficDelay / 60)} min
             </div>
+          )}
 
-            <form onSubmit={handleCreateShipment}>
-              {/* Order Selection */}
-              <div style={{ marginBottom: '18px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: 'var(--color-text-secondary)' }}>
-                  Select Approved Order *
-                </label>
-                <select
-                  value={createForm.orderId}
-                  onChange={e => setCreateForm(f => ({ ...f, orderId: e.target.value }))}
-                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-primary)', color: 'var(--color-text-heading)', fontSize: '14px' }}
-                >
-                  <option value="">-- Select an order --</option>
-                  {approvedOrders.length === 0 && (
-                    <option disabled>No approved orders found. Approve an order first.</option>
-                  )}
-                  {approvedOrders.map(o => (
-                    <option key={o._id} value={o._id}>
-                      #{o._id?.slice(-8)?.toUpperCase()} — {o.type || 'Order'} — ${o.totalAmount || 0}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Carrier */}
-              <div style={{ marginBottom: '18px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: 'var(--color-text-secondary)' }}>Carrier</label>
-                <select
-                  value={createForm.carrier}
-                  onChange={e => setCreateForm(f => ({ ...f, carrier: e.target.value }))}
-                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-primary)', color: 'var(--color-text-heading)', fontSize: '14px' }}
-                >
-                  {['FedEx', 'UPS', 'DHL', 'DTDC', 'BlueDart', 'Delhivery', 'Ekart'].map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Origin */}
-              <div style={{ marginBottom: '18px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: 'var(--color-text-secondary)' }}>Origin City</label>
-                <input
-                  type="text"
-                  value={createForm.originCity}
-                  onChange={e => setCreateForm(f => ({ ...f, originCity: e.target.value }))}
-                  placeholder="e.g. Mumbai"
-                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-primary)', color: 'var(--color-text-heading)', fontSize: '14px', boxSizing: 'border-box' }}
-                />
-              </div>
-
-              {/* Destination */}
-              <div style={{ marginBottom: '6px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: 'var(--color-text-secondary)' }}>Destination *</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <input
-                    type="text"
-                    value={createForm.destStreet}
-                    onChange={e => setCreateForm(f => ({ ...f, destStreet: e.target.value }))}
-                    placeholder="Street (optional)"
-                    style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-primary)', color: 'var(--color-text-heading)', fontSize: '13px', gridColumn: '1 / -1' }}
-                  />
-                  <input
-                    type="text"
-                    value={createForm.destCity}
-                    onChange={e => setCreateForm(f => ({ ...f, destCity: e.target.value }))}
-                    placeholder="City *"
-                    required
-                    style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-primary)', color: 'var(--color-text-heading)', fontSize: '13px' }}
-                  />
-                  <input
-                    type="text"
-                    value={createForm.destState}
-                    onChange={e => setCreateForm(f => ({ ...f, destState: e.target.value }))}
-                    placeholder="State"
-                    style={{ padding: '10px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-primary)', color: 'var(--color-text-heading)', fontSize: '13px' }}
-                  />
+          {(result.stopsSequence || []).length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--color-muted)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Via</div>
+              {result.stopsSequence.slice(0, 5).map((s, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--color-body)', paddingLeft: '4px' }}>
+                  <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--color-muted)', flexShrink: 0 }} />
+                  {s.name} <span style={{ color: 'var(--color-muted)', fontSize: '10px' }}>({s.type})</span>
                 </div>
-              </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-              {createError && (
-                <div style={{ color: '#ef4444', fontSize: '13px', padding: '8px 12px', backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: '6px', marginBottom: '16px', marginTop: '10px' }}>
-                  ⚠ {createError}
-                </div>
-              )}
+      {error && (
+        <div style={{ fontSize: '12px', color: '#dc2626', padding: '8px 12px', backgroundColor: 'rgba(220,38,38,0.07)', borderRadius: 'var(--rounded-sm)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <AlertTriangle size={12} /> {error}
+        </div>
+      )}
 
-              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  style={{ flex: 1, padding: '12px', borderRadius: '6px', border: '1px solid var(--color-border)', backgroundColor: 'transparent', color: 'var(--color-text-heading)', cursor: 'pointer', fontSize: '14px' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating}
-                  style={{ flex: 2, padding: '12px', borderRadius: '6px', border: 'none', backgroundColor: 'var(--color-accent)', color: 'white', cursor: creating ? 'not-allowed' : 'pointer', fontSize: '14px', fontWeight: '600', opacity: creating ? 0.7 : 1 }}
-                >
-                  {creating ? 'Creating...' : '🚚 Create Shipment'}
-                </button>
+      {/* Status Updater */}
+      <div style={{ borderTop: '1px solid var(--color-hairline)', paddingTop: '16px' }}>
+        <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '8px' }}>
+          Update Status
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          {Object.entries(STATUS_META).map(([key, meta]) => (
+            <button
+              key={key}
+              onClick={() => updateStatus(key)}
+              disabled={updatingStatus || shipment.status === key}
+              style={{
+                padding: '4px 12px', fontSize: '11px', fontWeight: '600',
+                borderRadius: '9999px',
+                border: `1px solid ${shipment.status === key ? meta.color : 'var(--color-hairline-strong)'}`,
+                backgroundColor: shipment.status === key ? meta.bg : 'transparent',
+                color: shipment.status === key ? meta.color : 'var(--color-muted)',
+                cursor: shipment.status === key ? 'default' : 'pointer',
+                transition: 'all 150ms',
+              }}
+            >
+              {meta.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Cost Info */}
+      {shipment.cost?.total && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '10px 0', borderTop: '1px solid var(--color-hairline)' }}>
+          <span style={{ color: 'var(--color-muted)' }}>Shipping Cost</span>
+          <span style={{ fontWeight: '700', color: '#16a34a' }}>${shipment.cost.total.toFixed(2)}</span>
+        </div>
+      )}
+
+      {/* Route history */}
+      {shipment.route?.length > 0 && (
+        <div>
+          <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '8px' }}>
+            Route History ({shipment.route.length} points)
+          </div>
+          <div style={{ maxHeight: '120px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {shipment.route.slice(-5).reverse().map((pt, i) => (
+              <div key={i} style={{ fontSize: '11px', color: 'var(--color-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ opacity: 0.4 }}>{fmtTime(pt.timestamp)}</span>
+                {pt.address || `${pt.latitude?.toFixed(4)}, ${pt.longitude?.toFixed(4)}`}
               </div>
-            </form>
+            ))}
           </div>
         </div>
       )}
     </div>
   );
+}
+
+// ─── Main Shipments Page ───────────────────────────────────────────────────────
+const Shipments = () => {
+  const { api } = useContext(InventoryContext);
+  const [shipments, setShipments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('ALL');
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchShipments = useCallback(async (showSpinner = true) => {
+    if (!api) return;
+    if (showSpinner) setLoading(true);
+    else setRefreshing(true);
+    try {
+      const url = filter === 'ALL' ? '/shipments?limit=100' : `/shipments?status=${filter}&limit=100`;
+      const res = await api.get(url);
+      setShipments(res.shipments || res.data?.shipments || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [api, filter]);
+
+  useEffect(() => { fetchShipments(); }, [fetchShipments]);
+
+  // Auto-refresh every 30 s
+  useEffect(() => {
+    const t = setInterval(() => fetchShipments(false), 30000);
+    return () => clearInterval(t);
+  }, [fetchShipments]);
+
+  const filtered = shipments.filter(s => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return s.trackingNumber?.toLowerCase().includes(q)
+      || s.carrier?.toLowerCase().includes(q)
+      || s.originAddress?.city?.toLowerCase().includes(q)
+      || s.destinationAddress?.city?.toLowerCase().includes(q);
+  });
+
+  const statusCounts = Object.fromEntries(
+    Object.keys(STATUS_META).map(k => [k, shipments.filter(s => s.status === k).length])
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0', minHeight: '100%' }}>
+      {/* Spin keyframe */}
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .shipment-row:hover { background-color: var(--color-canvas-soft) !important; }
+      `}</style>
+
+      {/* Page Header */}
+      <div className="page-header">
+        <div>
+          <h1>Shipments</h1>
+          <p style={{ color: 'var(--color-muted)', fontSize: '14px', marginTop: '2px' }}>
+            {shipments.length} total · live tracking · Dijkstra route optimization
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button
+            onClick={() => fetchShipments(false)}
+            className="btn-secondary"
+            style={{ height: '36px', padding: '0 14px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <RefreshCw size={13} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+            Refresh
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="btn-primary"
+            style={{ height: '36px', padding: '0 18px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Plus size={13} /> New Shipment
+          </button>
+        </div>
+      </div>
+
+      {/* Status summary chips */}
+      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '20px' }}>
+        {ALL_STATUSES.map(s => {
+          const meta = STATUS_META[s];
+          const count = s === 'ALL' ? shipments.length : (statusCounts[s] || 0);
+          const active = filter === s;
+          return (
+            <button
+              key={s}
+              onClick={() => { setFilter(s); setSelected(null); }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '6px 14px', borderRadius: '9999px', border: 'none',
+                backgroundColor: active ? (meta?.color || 'var(--color-ink)') : 'var(--color-surface-soft)',
+                color: active ? 'white' : 'var(--color-muted)',
+                fontSize: '12px', fontWeight: '600',
+                cursor: 'pointer', transition: 'all 150ms ease',
+                boxShadow: active ? `0 2px 8px ${meta?.color || 'rgba(0,0,0,0.2)'}40` : 'none',
+              }}
+            >
+              {s === 'ALL' ? 'All' : STATUS_META[s].label}
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                minWidth: '18px', height: '18px', borderRadius: '9999px',
+                backgroundColor: active ? 'rgba(255,255,255,0.25)' : 'var(--color-hairline)',
+                fontSize: '10px', fontWeight: '700',
+                color: active ? 'white' : 'var(--color-muted)',
+              }}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Main layout: table + side panel */}
+      <div style={{ display: 'flex', gap: '20px', flex: 1, alignItems: 'flex-start' }}>
+
+        {/* ── LEFT: Shipments table ── */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+          {/* Search */}
+          <div style={{ position: 'relative' }}>
+            <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-muted)', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by tracking number, carrier, city…"
+              style={{ height: '38px', paddingLeft: '36px', fontSize: '13px' }}
+            />
+          </div>
+
+          {/* Table */}
+          {loading ? (
+            <div style={{ padding: '80px', textAlign: 'center', color: 'var(--color-muted)', fontSize: '14px' }}>
+              <RefreshCw size={20} style={{ animation: 'spin 1s linear infinite', marginBottom: '10px', opacity: 0.4 }} />
+              <div>Loading shipments…</div>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div style={{ padding: '80px', textAlign: 'center', color: 'var(--color-muted)' }}>
+              <Package size={36} style={{ marginBottom: '12px', opacity: 0.3 }} />
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: '300', marginBottom: '6px' }}>No shipments</div>
+              <div style={{ fontSize: '13px', marginBottom: '16px' }}>
+                {search ? `No results for "${search}"` : filter !== 'ALL' ? `No shipments with status ${STATUS_META[filter]?.label}` : 'Create your first shipment'}
+              </div>
+              {!search && (
+                <button className="btn-primary" onClick={() => setShowCreate(true)} style={{ height: '36px', padding: '0 20px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <Plus size={13} /> New Shipment
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Tracking</th>
+                    <th>Route</th>
+                    <th>Carrier</th>
+                    <th>Status</th>
+                    <th>ETA</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(s => {
+                    const isSelected = selected?._id === s._id;
+                    return (
+                      <tr
+                        key={s._id}
+                        className="shipment-row"
+                        onClick={() => setSelected(isSelected ? null : s)}
+                        style={{
+                          cursor: 'pointer',
+                          backgroundColor: isSelected ? 'var(--color-canvas-soft)' : undefined,
+                          borderLeft: isSelected ? `3px solid ${STATUS_META[s.status]?.color || 'var(--color-primary)'}` : '3px solid transparent',
+                          transition: 'all 100ms ease',
+                        }}
+                      >
+                        <td>
+                          <div style={{ fontWeight: '600', fontSize: '13px', color: 'var(--color-ink)', fontFamily: 'monospace', letterSpacing: '0.5px' }}>
+                            {s.trackingNumber}
+                          </div>
+                          {s.currentLocation?.address && (
+                            <div style={{ fontSize: '11px', color: 'var(--color-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#16a34a', animation: 'pulse 2s infinite', display: 'inline-block' }} />
+                              {s.currentLocation.address}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+                            <span style={{ color: '#16a34a', fontWeight: '500' }}>{s.originAddress?.city || '—'}</span>
+                            <ArrowRight size={10} style={{ color: 'var(--color-muted)', flexShrink: 0 }} />
+                            <span style={{ color: '#dc2626', fontWeight: '500' }}>{s.destinationAddress?.city || '—'}</span>
+                          </div>
+                          {s.originAddress?.latitude ? (
+                            <div style={{ fontSize: '10px', color: '#16a34a', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                              <Navigation size={9} /> GPS
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '10px', color: 'var(--color-muted)', marginTop: '2px' }}>No GPS</div>
+                          )}
+                        </td>
+                        <td style={{ fontSize: '13px' }}>{s.carrier}</td>
+                        <td><StatusBadge status={s.status} /></td>
+                        <td style={{ fontSize: '12px', color: 'var(--color-muted)' }}>
+                          {s.status === 'DELIVERED' ? (
+                            <span style={{ color: '#16a34a', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <CheckCircle size={11} /> {fmt(s.actualDeliveryDate)}
+                            </span>
+                          ) : (
+                            fmt(s.estimatedDeliveryDate)
+                          )}
+                        </td>
+                        <td>
+                          <ChevronRight size={14} style={{ color: 'var(--color-muted)', transform: isSelected ? 'rotate(90deg)' : 'none', transition: 'transform 150ms' }} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* ── RIGHT: Detail panel ── */}
+        {selected && (
+          <div style={{
+            width: '400px',
+            flexShrink: 0,
+            backgroundColor: 'var(--color-surface-card)',
+            border: '1px solid var(--color-hairline)',
+            borderRadius: 'var(--rounded-xl)',
+            padding: '20px',
+            position: 'sticky',
+            top: '84px',
+            maxHeight: 'calc(100vh - 104px)',
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0',
+          }}>
+            <RouteOptimizerPanel
+              shipment={selected}
+              api={api}
+              onClose={() => setSelected(null)}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Create Modal */}
+      {showCreate && (
+        <CreateShipmentModal
+          api={api}
+          onCreated={() => {
+            setShowCreate(false);
+            fetchShipments();
+          }}
+          onClose={() => setShowCreate(false)}
+        />
+      )}
+    </div>
+  );
 };
 
-export default ShipmentTracker;
+export default Shipments;

@@ -28,7 +28,7 @@ const RouteMap = ({ pathData }) => {
     });
   }
 
-  stopsSequence.forEach((stop, index) => {
+  (stopsSequence || []).forEach((stop, index) => {
     nodesList.push({
       id: stop.nodeId,
       name: stop.name,
