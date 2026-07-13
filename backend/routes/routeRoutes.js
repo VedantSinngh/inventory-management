@@ -14,7 +14,7 @@ const router = express.Router();
  * POST /api/routes/optimal
  * Find optimal route between two nodes using Dijkstra's algorithm
  */
-router.post('/optimal', protect, authorize(['ADMIN', 'MANAGER']), async (req, res) => {
+router.post('/optimal', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const { fromNodeId, toNodeId, criterion = 'COST' } = req.body;
 
@@ -104,7 +104,7 @@ router.post('/optimal', protect, authorize(['ADMIN', 'MANAGER']), async (req, re
  * POST /api/routes/manual
  * Manually add or update a route
  */
-router.post('/manual', protect, authorize(['ADMIN']), async (req, res) => {
+router.post('/manual', protect, authorize('ADMIN'), async (req, res) => {
   try {
     const {
       name,
@@ -274,7 +274,7 @@ router.get('/:id', protect, async (req, res) => {
  * PUT /api/routes/:id
  * Update route
  */
-router.put('/:id', protect, authorize(['ADMIN']), async (req, res) => {
+router.put('/:id', protect, authorize('ADMIN'), async (req, res) => {
   try {
     const { distance, estimatedTime, cost, carriers, active, notes } = req.body;
 
@@ -318,7 +318,7 @@ router.put('/:id', protect, authorize(['ADMIN']), async (req, res) => {
  * DELETE /api/routes/:id
  * Soft delete route
  */
-router.delete('/:id', protect, authorize(['ADMIN']), async (req, res) => {
+router.delete('/:id', protect, authorize('ADMIN'), async (req, res) => {
   try {
     const route = await Route.findById(req.params.id);
     if (!route || route.deletedAt) {
@@ -354,7 +354,7 @@ router.delete('/:id', protect, authorize(['ADMIN']), async (req, res) => {
  * POST /api/routes/shipment/:shipmentId/optimize
  * Optimize a specific shipment's route
  */
-router.post('/shipment/:shipmentId/optimize', protect, authorize(['ADMIN', 'MANAGER', 'STAFF']), async (req, res) => {
+router.post('/shipment/:shipmentId/optimize', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res) => {
   try {
     const shipment = await Shipment.findById(req.params.shipmentId);
     if (!shipment) {
@@ -520,7 +520,7 @@ router.post('/shipment/:shipmentId/optimize', protect, authorize(['ADMIN', 'MANA
  * POST /api/routes/multi-stop
  * Calculate multi-stop optimal delivery route using Dijkstra as the edge evaluator
  */
-router.post('/multi-stop', protect, authorize(['ADMIN', 'MANAGER']), async (req, res) => {
+router.post('/multi-stop', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const { startNodeId, stopNodeIds, criterion = 'COST' } = req.body;
 
@@ -648,7 +648,7 @@ router.post('/multi-stop', protect, authorize(['ADMIN', 'MANAGER']), async (req,
  * POST /api/routes/reroute
  * Dynamically re-route shipment if a warehouse is out of stock
  */
-router.post('/reroute', protect, authorize(['ADMIN', 'MANAGER']), async (req, res) => {
+router.post('/reroute', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
   try {
     const { shipmentId, outOfStockWarehouseId, productId } = req.body;
 
