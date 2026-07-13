@@ -142,11 +142,11 @@ function CreateShipmentModal({ api, onCreated, onClose }) {
   // When both coords set, fetch OSRM route preview
   useEffect(() => {
     if (!origin?.lat || !destination?.lat) { setRoutePreview([]); return; }
-    // Use OSRM for polyline
-    const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?geometries=geojson&overview=full`;
+    const tomtomKey = import.meta.env.VITE_TOMTOM_KEY || 'N4g0niHg4iTxrHs25Lpivqt9GcM6bh3d';
+    const url = `https://api.tomtom.com/routing/1/calculateRoute/${origin.lat},${origin.lng}:${destination.lat},${destination.lng}/json?key=${tomtomKey}&traffic=true`;
     fetch(url).then(r => r.json()).then(d => {
-      const coords = d.routes?.[0]?.geometry?.coordinates || [];
-      setRoutePreview(coords.map(([lng, lat]) => ({ lat, lng })));
+      const pts = d.routes?.[0]?.legs?.[0]?.points || [];
+      setRoutePreview(pts.map(p => ({ lat: p.latitude, lng: p.longitude })));
     }).catch(() => setRoutePreview([]));
   }, [origin?.lat, origin?.lng, destination?.lat, destination?.lng]);
 
@@ -155,22 +155,24 @@ function CreateShipmentModal({ api, onCreated, onClose }) {
       setOrigin(prev => ({ ...prev, lat, lng }));
       setForm(f => ({ ...f, originCity: `${lat.toFixed(4)}, ${lng.toFixed(4)}` }));
       // Reverse geocode
-      fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`, {
-        headers: { 'User-Agent': 'StockIMS/1.0' }
-      }).then(r => r.json()).then(d => {
-        const city = d.address?.city || d.address?.town || d.address?.village || '';
-        const state = d.address?.state || '';
+      const tomtomKey = import.meta.env.VITE_TOMTOM_KEY || 'N4g0niHg4iTxrHs25Lpivqt9GcM6bh3d';
+      fetch(`https://api.tomtom.com/search/2/reverseGeocode/${lat},${lng}.json?key=${tomtomKey}`)
+      .then(r => r.json()).then(d => {
+        const address = d.addresses?.[0]?.address || {};
+        const city = address.municipality || address.localName || '';
+        const state = address.countrySubdivision || '';
         setOrigin(prev => ({ ...prev, city, state }));
         setForm(f => ({ ...f, originCity: city || f.originCity, originState: state }));
       }).catch(() => {});
     } else if (pickMode === 'destination') {
       setDestination(prev => ({ ...prev, lat, lng }));
       setForm(f => ({ ...f, destCity: `${lat.toFixed(4)}, ${lng.toFixed(4)}` }));
-      fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`, {
-        headers: { 'User-Agent': 'StockIMS/1.0' }
-      }).then(r => r.json()).then(d => {
-        const city = d.address?.city || d.address?.town || d.address?.village || '';
-        const state = d.address?.state || '';
+      const tomtomKey = import.meta.env.VITE_TOMTOM_KEY || 'N4g0niHg4iTxrHs25Lpivqt9GcM6bh3d';
+      fetch(`https://api.tomtom.com/search/2/reverseGeocode/${lat},${lng}.json?key=${tomtomKey}`)
+      .then(r => r.json()).then(d => {
+        const address = d.addresses?.[0]?.address || {};
+        const city = address.municipality || address.localName || '';
+        const state = address.countrySubdivision || '';
         setDestination(prev => ({ ...prev, city, state }));
         setForm(f => ({ ...f, destCity: city || f.destCity, destState: state }));
       }).catch(() => {});
@@ -180,13 +182,12 @@ function CreateShipmentModal({ api, onCreated, onClose }) {
   const geocodeCity = async (cityStr, field) => {
     if (!cityStr || cityStr.trim().length < 2) return;
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityStr)}&format=json&limit=1`, {
-        headers: { 'User-Agent': 'StockIMS/1.0' }
-      });
+      const tomtomKey = import.meta.env.VITE_TOMTOM_KEY || 'N4g0niHg4iTxrHs25Lpivqt9GcM6bh3d';
+      const res = await fetch(`https://api.tomtom.com/search/2/geocode/${encodeURIComponent(cityStr)}.json?key=${tomtomKey}&limit=1`);
       const data = await res.json();
-      if (data?.[0]) {
-        const lat = parseFloat(data[0].lat);
-        const lng = parseFloat(data[0].lon);
+      if (data?.results?.[0]) {
+        const lat = parseFloat(data.results[0].position.lat);
+        const lng = parseFloat(data.results[0].position.lon);
         if (field === 'origin') setOrigin({ lat, lng, city: cityStr });
         else setDestination({ lat, lng, city: cityStr });
       }
@@ -371,8 +372,8 @@ function CreateShipmentModal({ api, onCreated, onClose }) {
               />
             </div>
             <div style={{ fontSize: '12px', color: 'var(--color-muted)', lineHeight: '1.6' }}>
-              Addresses are automatically geocoded via OpenStreetMap Nominatim.
-              Route and ETA are calculated using OSRM free routing.
+              Addresses are automatically geocoded via TomTom Search API.
+              Route and ETA are calculated using TomTom Routing API (live traffic).
             </div>
           </div>
 
@@ -434,16 +435,17 @@ function RouteOptimizerPanel({ shipment, api, onClose }) {
       const data = res.data || res;
       setResult(data);
 
-      // Also fetch OSRM polyline between origin and destination
+      // Also fetch TomTom polyline between origin and destination
       if (shipment.originAddress?.latitude && shipment.destinationAddress?.latitude) {
         const oLng = shipment.originAddress.longitude;
         const oLat = shipment.originAddress.latitude;
         const dLng = shipment.destinationAddress.longitude;
         const dLat = shipment.destinationAddress.latitude;
-        const url = `https://router.project-osrm.org/route/v1/driving/${oLng},${oLat};${dLng},${dLat}?geometries=geojson&overview=full`;
+        const tomtomKey = import.meta.env.VITE_TOMTOM_KEY || 'N4g0niHg4iTxrHs25Lpivqt9GcM6bh3d';
+        const url = `https://api.tomtom.com/routing/1/calculateRoute/${oLat},${oLng}:${dLat},${dLng}/json?key=${tomtomKey}&traffic=true`;
         fetch(url).then(r => r.json()).then(d => {
-          const coords = d.routes?.[0]?.geometry?.coordinates || [];
-          setRouteCoords(coords.map(([lng, lat]) => ({ lat, lng })));
+          const pts = d.routes?.[0]?.legs?.[0]?.points || [];
+          setRouteCoords(pts.map(p => ({ lat: p.latitude, lng: p.longitude })));
         }).catch(() => {});
       }
     } catch (e) {

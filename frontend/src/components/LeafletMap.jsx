@@ -102,9 +102,18 @@ const LeafletMap = ({
         zoomControl: true,
       });
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
+      const tomtomKey = import.meta.env.VITE_TOMTOM_KEY || 'N4g0niHg4iTxrHs25Lpivqt9GcM6bh3d';
+      
+      // Base map
+      L.tileLayer(`https://api.tomtom.com/map/1/tile/basic/main/{z}/{x}/{y}.png?key=${tomtomKey}`, {
+        attribution: '© TomTom',
         maxZoom: 19,
+      }).addTo(map);
+
+      // Traffic overlay
+      L.tileLayer(`https://api.tomtom.com/traffic/map/4/tile/flow/relative/{z}/{x}/{y}.png?key=${tomtomKey}`, {
+        maxZoom: 19,
+        opacity: 0.8
       }).addTo(map);
 
       mapRef.current = map;
