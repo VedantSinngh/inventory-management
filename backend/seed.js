@@ -6,6 +6,7 @@ import Warehouse from './models/Warehouse.js';
 import Order from './models/Order.js';
 import AuditLog from './models/AuditLog.js';
 import Supplier from './models/Supplier.js';
+import Shipment from './models/Shipment.js';
 
 dotenv.config();
 
@@ -20,7 +21,8 @@ const seed = async () => {
       Warehouse.deleteMany({}),
       Order.deleteMany({}),
       AuditLog.deleteMany({}),
-      Supplier.deleteMany({})
+      Supplier.deleteMany({}),
+      Shipment.deleteMany({})
     ]);
 
     console.log('👤 Creating users...');
@@ -295,6 +297,71 @@ const seed = async () => {
         createdBy: users[2]._id,
         cancelledAt: new Date(),
         cancellationReason: 'Customer requested cancellation'
+      }
+    ]);
+
+    console.log('🚚 Creating shipments...');
+    await Shipment.create([
+      {
+        order: orders[0]._id,
+        trackingNumber: 'SHP100001',
+        status: 'DELIVERED',
+        carrier: 'FedEx',
+        originAddress: {
+          street: '100 Main St',
+          city: 'New York',
+          state: 'NY',
+          zipCode: '10001',
+          country: 'USA',
+          latitude: 40.7128,
+          longitude: -74.0060
+        },
+        destinationAddress: {
+          street: '500 Broad St',
+          city: 'Philadelphia',
+          state: 'PA',
+          zipCode: '19102',
+          country: 'USA',
+          latitude: 39.9526,
+          longitude: -75.1652
+        },
+        estimatedDeliveryDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        actualDeliveryDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        weight: 12.5,
+        createdBy: users[0]._id
+      },
+      {
+        order: orders[1]._id,
+        trackingNumber: 'SHP100002',
+        status: 'IN_TRANSIT',
+        carrier: 'UPS',
+        originAddress: {
+          street: '200 Los Angeles St',
+          city: 'Los Angeles',
+          state: 'CA',
+          zipCode: '90012',
+          country: 'USA',
+          latitude: 34.0522,
+          longitude: -118.2437
+        },
+        destinationAddress: {
+          street: '300 W Adams St',
+          city: 'Chicago',
+          state: 'IL',
+          zipCode: '60606',
+          country: 'USA',
+          latitude: 41.8781,
+          longitude: -87.6298
+        },
+        currentLocation: {
+          latitude: 39.7392,
+          longitude: -104.9903,
+          address: 'Denver, CO',
+          timestamp: new Date()
+        },
+        estimatedDeliveryDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+        weight: 25.0,
+        createdBy: users[0]._id
       }
     ]);
 

@@ -110,14 +110,14 @@ const RouteMap = ({ pathData }) => {
           <div style={{ backgroundColor: 'rgba(255,255,255,0.02)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)', height: '100%' }}>
             <h4 style={{ margin: '0 0 10px 0', borderBottom: '1px solid var(--color-border)', paddingBottom: '5px' }}>Route Summary Metrics</h4>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px', fontSize: '14px' }}>
-              <div>Distance: <strong>{totalDistance.toFixed(2)} km</strong></div>
-              <div>Estimated Time: <strong>{totalTime.toFixed(1)} mins</strong></div>
-              {totalTrafficDelay > 0 && (
+              <div>Distance: <strong>{isFinite(totalDistance) ? Number(totalDistance).toFixed(2) : '—'} km</strong></div>
+              <div>Est. Travel Time: <strong>{isFinite(totalTime) ? Number(totalTime).toFixed(1) : '—'} mins</strong></div>
+              {totalTrafficDelay > 0 && isFinite(totalTrafficDelay) && (
                 <div style={{ color: '#eab308', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   Traffic Delay: <strong>{(totalTrafficDelay / 60).toFixed(1)} mins</strong> 🚦
                 </div>
               )}
-              <div>Estimated Cost: <strong>${totalCost.toFixed(2)}</strong></div>
+              <div>Estimated Cost: <strong>${isFinite(totalCost) ? Number(totalCost).toFixed(2) : '—'}</strong></div>
             </div>
 
             <h4 style={{ margin: '15px 0 10px 0', borderBottom: '1px solid var(--color-border)', paddingBottom: '5px' }}>Stops Sequence</h4>
@@ -125,8 +125,8 @@ const RouteMap = ({ pathData }) => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', fontWeight: 'bold', marginBottom: '4px' }}>
                 <MapPin size={12} /> {startNode?.name} (Origin)
               </div>
-              {stopsSequence.map((stop, i) => (
-                <div key={stop.nodeId} style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: '4px 0', paddingLeft: '8px', borderLeft: '2px solid var(--color-border)' }}>
+              {(stopsSequence || []).map((stop, i) => (
+                <div key={stop.nodeId || i} style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: '4px 0', paddingLeft: '8px', borderLeft: '2px solid var(--color-border)' }}>
                   <span style={{ color: 'var(--color-text-secondary)' }}>{i + 1}.</span> {stop.name}
                 </div>
               ))}
