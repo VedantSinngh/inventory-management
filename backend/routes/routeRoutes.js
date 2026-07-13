@@ -354,7 +354,7 @@ router.delete('/:id', protect, authorize(['ADMIN']), async (req, res) => {
  * POST /api/routes/shipment/:shipmentId/optimize
  * Optimize a specific shipment's route
  */
-router.post('/shipment/:shipmentId/optimize', protect, authorize(['ADMIN', 'MANAGER']), async (req, res) => {
+router.post('/shipment/:shipmentId/optimize', protect, authorize(['ADMIN', 'MANAGER', 'STAFF']), async (req, res) => {
   try {
     const shipment = await Shipment.findById(req.params.shipmentId);
     if (!shipment) {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { InventoryContext } from '../context/InventoryContext';
 import LeafletMap from '../components/LeafletMap';
+import LocationAutocomplete from '../components/LocationAutocomplete';
 import {
   Truck, MapPin, Calendar, Navigation, Plus, X, ChevronRight,
   RefreshCw, AlertTriangle, Clock, Package, Search, Filter,
@@ -179,20 +180,7 @@ function CreateShipmentModal({ api, onCreated, onClose }) {
     }
   };
 
-  const geocodeCity = async (cityStr, field) => {
-    if (!cityStr || cityStr.trim().length < 2) return;
-    try {
-      const tomtomKey = import.meta.env.VITE_TOMTOM_KEY || 'N4g0niHg4iTxrHs25Lpivqt9GcM6bh3d';
-      const res = await fetch(`https://api.tomtom.com/search/2/geocode/${encodeURIComponent(cityStr)}.json?key=${tomtomKey}&limit=1`);
-      const data = await res.json();
-      if (data?.results?.[0]) {
-        const lat = parseFloat(data.results[0].position.lat);
-        const lng = parseFloat(data.results[0].position.lon);
-        if (field === 'origin') setOrigin({ lat, lng, city: cityStr });
-        else setDestination({ lat, lng, city: cityStr });
-      }
-    } catch {}
-  };
+  // Removed geocodeCity as LocationAutocomplete handles it now
 
   const handleSubmit = async () => {
     if (!form.orderId) { setError('Select an order'); return; }
@@ -324,13 +312,18 @@ function CreateShipmentModal({ api, onCreated, onClose }) {
                 onClearPick={() => setPickMode(null)}
               />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <input
-                  type="text"
+                <LocationAutocomplete
+                  placeholder="Search origin city/address..."
                   value={form.originCity}
-                  onChange={e => setForm(f => ({ ...f, originCity: e.target.value }))}
-                  onBlur={e => geocodeCity(e.target.value, 'origin')}
-                  placeholder="City name (auto-geocodes)"
-                  style={{ height: '36px', fontSize: '13px', padding: '0 12px' }}
+                  onChange={v => setForm(f => ({ ...f, originCity: v }))}
+                  onSelect={(item) => {
+                    if (item) {
+                      setOrigin({ lat: item.lat, lng: item.lng, city: item.city });
+                      setForm(f => ({ ...f, originCity: item.city, originState: item.state, originCountry: item.country }));
+                    } else {
+                      setOrigin(null);
+                    }
+                  }}
                 />
               </div>
             </div>
@@ -345,13 +338,18 @@ function CreateShipmentModal({ api, onCreated, onClose }) {
                 onClearPick={() => setPickMode(null)}
               />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <input
-                  type="text"
+                <LocationAutocomplete
+                  placeholder="Search destination city/address..."
                   value={form.destCity}
-                  onChange={e => setForm(f => ({ ...f, destCity: e.target.value }))}
-                  onBlur={e => geocodeCity(e.target.value, 'destination')}
-                  placeholder="City name (auto-geocodes)"
-                  style={{ height: '36px', fontSize: '13px', padding: '0 12px' }}
+                  onChange={v => setForm(f => ({ ...f, destCity: v }))}
+                  onSelect={(item) => {
+                    if (item) {
+                      setDestination({ lat: item.lat, lng: item.lng, city: item.city });
+                      setForm(f => ({ ...f, destCity: item.city, destState: item.state, destCountry: item.country }));
+                    } else {
+                      setDestination(null);
+                    }
+                  }}
                 />
               </div>
             </div>
