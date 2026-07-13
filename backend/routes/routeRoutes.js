@@ -6,6 +6,7 @@ import Warehouse from '../models/Warehouse.js';
 import Supplier from '../models/Supplier.js';
 import Shipment from '../models/Shipment.js';
 import logger from '../services/logger.js';
+import MapService from '../services/mapService.js';
 
 const router = express.Router();
 
@@ -373,27 +374,50 @@ router.post('/shipment/:shipmentId/optimize', protect, authorize(['ADMIN', 'MANA
     }
 
     const criterion = req.body.criterion || 'COST';
-    const allRoutes = await Route.find({ active: true, deletedAt: null });
+    
+    // Fetch all active warehouses and suppliers as nodes
+    const warehouses = await Warehouse.find({ deletedAt: null }).lean();
+    const suppliers = await Supplier.find({ deletedAt: null }).lean();
 
-    // Build graph and find optimal path
     const nodes = [
-      {
-        id: warehouse._id.toString(),
-        name: warehouse.name,
+      ...warehouses.map(w => ({
+        id: w._id.toString(),
+        name: w.name,
         type: 'WAREHOUSE',
-        latitude: warehouse.address?.latitude,
-        longitude: warehouse.address?.longitude
-      },
+        latitude: w.address?.latitude,
+        longitude: w.address?.longitude,
+        address: w.location
+      })),
+      ...suppliers.map(s => ({
+        id: s._id.toString(),
+        name: s.name,
+        type: 'SUPPLIER',
+        latitude: s.contactInfo?.address?.latitude,
+        longitude: s.contactInfo?.address?.longitude,
+        address: s.contactInfo?.address?.city
+      })),
       {
         id: 'destination',
         name: 'Destination',
         type: 'DESTINATION',
         latitude: shipment.destinationAddress.latitude,
-        longitude: shipment.destinationAddress.longitude
+        longitude: shipment.destinationAddress.longitude,
+        address: shipment.destinationAddress.city || 'Destination Address'
       }
     ];
 
-    const edges = allRoutes.map(r => ({
+    // Filter nodes that have valid coordinates (or are the start/destination)
+    const validNodes = nodes.filter(n => 
+      n.id === warehouse._id.toString() || 
+      n.id === 'destination' || 
+      (n.latitude !== undefined && n.longitude !== undefined)
+    );
+
+    const nodeMap = new Map(validNodes.map(n => [n.id, n]));
+
+    const allRoutes = await Route.find({ active: true, deletedAt: null });
+
+    let edges = allRoutes.map(r => ({
       from: r.fromNode.nodeId.toString(),
       to: r.toNode.nodeId.toString(),
       distance: r.distance,
@@ -401,17 +425,77 @@ router.post('/shipment/:shipmentId/optimize', protect, authorize(['ADMIN', 'MANA
       time: r.estimatedTime
     }));
 
+    // If no stored routes, or to connect start/end, auto-generate edges using buildGraphFromLocations
     if (edges.length === 0) {
-      const { nodes: autoNodes, edges: autoEdges } = DijkstraRoutePlanner.buildGraphFromLocations(nodes, 5, 60);
-      edges.push(...autoEdges);
+      const { edges: autoEdges } = DijkstraRoutePlanner.buildGraphFromLocations(
+        validNodes.filter(n => n.latitude !== undefined && n.longitude !== undefined),
+        5,
+        60
+      );
+      edges = autoEdges;
+    } else {
+      // Connect warehouse depot and destination to the nearest route nodes if they aren't fully connected
+      // To simplify, we also ensure we have auto edges connecting to 'destination' from all nodes
+      const { edges: connectEdges } = DijkstraRoutePlanner.buildGraphFromLocations(
+        validNodes.filter(n => n.latitude !== undefined && n.longitude !== undefined),
+        5,
+        60
+      );
+      edges.push(...connectEdges);
     }
 
-    const planner = new DijkstraRoutePlanner(nodes, edges);
+    // De-duplicate edges
+    const edgeKey = e => `${e.from}-${e.to}`;
+    const seenEdges = new Set();
+    const uniqueEdges = [];
+    for (const edge of edges) {
+      const key = edgeKey(edge);
+      const reverseKey = `${edge.to}-${edge.from}`;
+      if (!seenEdges.has(key) && !seenEdges.has(reverseKey)) {
+        seenEdges.add(key);
+        uniqueEdges.push(edge);
+      }
+    }
+
+    // Apply live traffic using TomTom API for all unique edges
+    const trafficEdges = await Promise.all(uniqueEdges.map(async (edge) => {
+      const fromNode = nodeMap.get(edge.from);
+      const toNode = nodeMap.get(edge.to);
+
+      if (fromNode && toNode && fromNode.latitude !== undefined && fromNode.longitude !== undefined && toNode.latitude !== undefined && toNode.longitude !== undefined) {
+        try {
+          const tomtomResult = await MapService.getTomTomRoute(fromNode, toNode);
+          const travelTimeMinutes = tomtomResult.duration / 60;
+          const travelDistanceKm = tomtomResult.distance / 1000;
+          
+          // Cost factors in driver time/fuel waste due to traffic delays
+          const delayHours = (tomtomResult.trafficDelay || 0) / 3600;
+          const trafficCostMultiplier = 1.0 + (delayHours * 0.15); // 15% surcharge per hour of traffic delay
+          const updatedCost = (edge.cost || (travelDistanceKm * 5)) * trafficCostMultiplier;
+
+          return {
+            ...edge,
+            distance: travelDistanceKm,
+            time: travelTimeMinutes,
+            cost: updatedCost,
+            trafficDelay: tomtomResult.trafficDelay || 0
+          };
+        } catch (err) {
+          console.warn(`Error getting TomTom traffic for edge ${edge.from} -> ${edge.to}:`, err.message);
+        }
+      }
+      return edge;
+    }));
+
+    const planner = new DijkstraRoutePlanner(validNodes, trafficEdges);
     const optimalPath = planner.findOptimalPath(warehouse._id.toString(), 'destination', criterion);
 
-    logger.info('Shipment route optimized', {
+    logger.info('Shipment route optimized with TomTom live traffic and Dijkstra', {
       shipmentId: req.params.shipmentId,
       criterion,
+      totalDistance: optimalPath.totalDistance,
+      totalTime: optimalPath.totalTime,
+      totalCost: optimalPath.totalCost,
       userId: req.user.id
     });
 

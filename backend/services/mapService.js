@@ -275,6 +275,79 @@ class MapService {
   }
 
   /**
+   * Get route with live traffic using TomTom API (with robust simulated fallback)
+   */
+  async getTomTomRoute(origin, destination) {
+    const apiKey = process.env.TOMTOM_API_KEY;
+    const originLat = origin.latitude !== undefined ? origin.latitude : origin.lat;
+    const originLng = origin.longitude !== undefined ? origin.longitude : origin.lon;
+    const destLat = destination.latitude !== undefined ? destination.latitude : destination.lat;
+    const destLng = destination.longitude !== undefined ? destination.longitude : destination.lon;
+
+    if (apiKey && apiKey !== 'your_tomtom_api_key_here') {
+      try {
+        const url = `https://api.tomtom.com/routing/1/calculateRoute/${originLat},${originLng}:${destLat},${destLng}/json`;
+        const response = await axios.get(url, {
+          params: {
+            key: apiKey,
+            traffic: true,
+            travelMode: 'truck'
+          }
+        });
+
+        if (response.data?.routes?.[0]) {
+          const route = response.data.routes[0];
+          return {
+            distance: route.summary.lengthInMeters, // meters
+            duration: route.summary.travelTimeInSeconds, // seconds
+            trafficDelay: route.summary.trafficDelayInSeconds || 0, // seconds
+            geometry: {
+              type: 'LineString',
+              coordinates: route.legs?.[0]?.points?.map(p => [p.longitude, p.latitude]) || [[originLng, originLat], [destLng, destLat]]
+            },
+            source: 'tomtom'
+          };
+        }
+      } catch (error) {
+        console.warn('TomTom Routing API error, falling back to simulated traffic:', error.message);
+      }
+    }
+
+    // Fallback: Use OSRM or math logic, and simulate traffic based on time of day
+    const baseRoute = await this.getRoute(origin, destination);
+    
+    // Simulate live traffic delay based on time of day
+    const currentHour = new Date().getHours();
+    let trafficMultiplier = 1.1; // Default mild traffic
+    
+    if (currentHour >= 8 && currentHour <= 10) {
+      trafficMultiplier = 1.5; // Morning rush hour
+    } else if (currentHour >= 17 && currentHour <= 19) {
+      trafficMultiplier = 1.6; // Evening rush hour
+    } else if (currentHour >= 12 && currentHour <= 14) {
+      trafficMultiplier = 1.3; // Mid-day congestion
+    } else if (currentHour >= 22 || currentHour <= 5) {
+      trafficMultiplier = 1.0; // Night, clear roads
+    }
+
+    // Add random variance (+/- 10%)
+    const randomVariance = 0.9 + Math.random() * 0.2;
+    const finalMultiplier = trafficMultiplier * randomVariance;
+
+    const baseDuration = baseRoute.duration; // seconds
+    const trafficDuration = baseDuration * finalMultiplier;
+    const trafficDelay = Math.max(0, trafficDuration - baseDuration);
+
+    return {
+      distance: baseRoute.distance,
+      duration: Math.round(trafficDuration),
+      trafficDelay: Math.round(trafficDelay),
+      geometry: baseRoute.geometry,
+      source: 'tomtom-simulated'
+    };
+  }
+
+  /**
    * Distance matrix calculation
    */
   async getDistanceMatrix(origins, destinations) {

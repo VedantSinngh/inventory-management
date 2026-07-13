@@ -173,9 +173,19 @@ class DijkstraRoutePlanner {
       throw new Error('No route found between nodes');
     }
 
+    const stopsSequence = path.map(segment => {
+      const node = this.nodes.get(segment.to);
+      return {
+        nodeId: segment.to,
+        name: node?.name || 'Destination',
+        type: node?.type || 'DESTINATION'
+      };
+    });
+
     return {
       startNode: this.nodes.get(startId),
       endNode: this.nodes.get(endId),
+      stopsSequence,
       path,
       totalDistance: distances.get(endId),
       totalCost: costs.get(endId),
