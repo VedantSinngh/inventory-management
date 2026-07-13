@@ -89,7 +89,7 @@ router.get('/', protect, authorize('ADMIN', 'MANAGER', 'STAFF'), async (req, res
     if (type && ['PURCHASE', 'SALES'].includes(type)) {
       filter.type = type;
     }
-    if (status && ['PENDING', 'ACTIVE', 'COMPLETED', 'CANCELLED'].includes(status)) {
+    if (status && ['PENDING', 'APPROVED', 'PROCESSING', 'READY_FOR_SHIPMENT', 'SHIPPED', 'DELIVERED', 'COMPLETED', 'CANCELLED'].includes(status)) {
       filter.status = status;
     }
 
@@ -305,7 +305,7 @@ router.put('/:id', protect, authorize('ADMIN', 'MANAGER'), async (req, res) => {
     const { status } = req.body;
 
     // Validate status
-    if (!['PENDING', 'ACTIVE', 'COMPLETED', 'CANCELLED'].includes(status)) {
+    if (!['PENDING', 'APPROVED', 'PROCESSING', 'READY_FOR_SHIPMENT', 'SHIPPED', 'DELIVERED', 'COMPLETED', 'CANCELLED'].includes(status)) {
       return res.status(400).json({ message: 'Invalid order status' });
     }
 

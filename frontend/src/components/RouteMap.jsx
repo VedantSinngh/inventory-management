@@ -13,7 +13,7 @@ const RouteMap = ({ pathData }) => {
     );
   }
 
-  const { startNode, stopsSequence, path, totalDistance, totalCost, totalTime, criterion } = pathData;
+  const { startNode, stopsSequence, path, totalDistance, totalCost, totalTime, totalTrafficDelay, criterion } = pathData;
 
   // Render SVG nodes by projecting latitude and longitude
   // We locate a default coordinate boundary box, or map them dynamically
@@ -112,6 +112,11 @@ const RouteMap = ({ pathData }) => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px', fontSize: '14px' }}>
               <div>Distance: <strong>{totalDistance.toFixed(2)} km</strong></div>
               <div>Estimated Time: <strong>{totalTime.toFixed(1)} mins</strong></div>
+              {totalTrafficDelay > 0 && (
+                <div style={{ color: '#eab308', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  Traffic Delay: <strong>{(totalTrafficDelay / 60).toFixed(1)} mins</strong> 🚦
+                </div>
+              )}
               <div>Estimated Cost: <strong>${totalCost.toFixed(2)}</strong></div>
             </div>
 

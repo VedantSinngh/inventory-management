@@ -156,15 +156,19 @@ class DijkstraRoutePlanner {
     // Reconstruct path
     const path = [];
     let current = endId;
+    let totalTrafficDelay = 0;
     while (previous.has(current)) {
       const prev = previous.get(current);
+      const delay = prev.edge.trafficDelay || 0;
+      totalTrafficDelay += delay;
       path.unshift({
         from: prev.id,
         to: current,
         distance: prev.edge.distance,
         cost: prev.edge.cost,
         time: prev.edge.time,
-        carrier: prev.edge.carrier
+        carrier: prev.edge.carrier,
+        trafficDelay: delay
       });
       current = prev.id;
     }
@@ -190,6 +194,7 @@ class DijkstraRoutePlanner {
       totalDistance: distances.get(endId),
       totalCost: costs.get(endId),
       totalTime: times.get(endId),
+      totalTrafficDelay,
       steps: path.length,
       criterion,
       timestamp: new Date().toISOString()
