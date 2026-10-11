@@ -5,13 +5,13 @@ class LLMAlertDescriptionService {
   constructor(config = {}) {
     const provider = (config.provider || process.env.LLM_PROVIDER || 'groq').toLowerCase();
     let baseURL = 'https://api.groq.com/openai/v1';
-    let defaultModel = 'llama-3.3-70b-versatile';
+    let defaultModel = 'openai/gpt-oss-120b';
     let requiresKey = true;
 
     switch (provider) {
       case 'groq':
         baseURL = 'https://api.groq.com/openai/v1';
-        defaultModel = 'llama-3.3-70b-versatile';
+        defaultModel = 'openai/gpt-oss-120b';
         requiresKey = true;
         break;
       case 'openai':
@@ -32,7 +32,7 @@ class LLMAlertDescriptionService {
       default:
         // Default to groq
         baseURL = 'https://api.groq.com/openai/v1';
-        defaultModel = 'llama-3.3-70b-versatile';
+        defaultModel = 'openai/gpt-oss-120b';
         requiresKey = true;
     }
 
