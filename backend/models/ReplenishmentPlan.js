@@ -31,6 +31,10 @@ const replenishmentItemSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  maxAllowed: {
+    type: Number,
+    default: null
+  },
   originalQuantity: {
     type: Number,
     default: null

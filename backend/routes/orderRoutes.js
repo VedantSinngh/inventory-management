@@ -19,7 +19,7 @@ const isTransactionUnsupportedError = (error) => {
   return TRANSACTION_UNSUPPORTED_ERRORS.some(text => message.includes(text));
 };
 
-const runWithOptionalTransaction = async (work) => {
+export const runWithOptionalTransaction = async (work) => {
   let session;
 
   try {

@@ -6,7 +6,7 @@ import CreateShipmentModal from '../components/CreateShipmentModal';
 import {
   Truck, MapPin, Calendar, Navigation, Plus, X, ChevronRight,
   RefreshCw, AlertTriangle, Clock, Package, Search, Filter,
-  CheckCircle, AlertCircle, ArrowRight, Zap, Route
+  CheckCircle, AlertCircle, ArrowRight, Zap
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────

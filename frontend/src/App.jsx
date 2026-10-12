@@ -15,6 +15,7 @@ import Alerts from './pages/Alerts';
 import CycleCounts from './pages/CycleCounts';
 import Analytics from './pages/Analytics';
 import ReorderEngine from './pages/ReorderEngine';
+import Replenishment from './pages/Replenishment';
 import Returns from './pages/Returns';
 import DeadStock from './pages/DeadStock';
 import MobileScanner from './pages/MobileScanner';
@@ -63,6 +64,7 @@ const TopNav = () => {
       { path: '/analytics', label: 'Analytics', roles: ['ADMIN', 'MANAGER'] },
       { path: '/alerts', label: 'Alerts' },
       { path: '/reorders', label: 'Reorder Engine', roles: ['ADMIN', 'MANAGER'] },
+      { path: '/replenishment', label: 'Replenishment', roles: ['ADMIN', 'MANAGER'] },
       { path: '/scanner', label: 'Scanner' },
     ]
   };
@@ -463,6 +465,7 @@ function App() {
                 <Route path="/warehouses" element={<ProtectedRoute><Warehouses /></ProtectedRoute>} />
                 <Route path="/users" element={<ProtectedRoute allowedRoles={['ADMIN']}><Users /></ProtectedRoute>} />
                 <Route path="/reorders" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><ReorderEngine /></ProtectedRoute>} />
+                <Route path="/replenishment" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><Replenishment /></ProtectedRoute>} />
                 <Route path="/returns" element={<ProtectedRoute><Returns /></ProtectedRoute>} />
                 <Route path="/dead-stock" element={<ProtectedRoute><DeadStock /></ProtectedRoute>} />
                 <Route path="/scanner" element={<ProtectedRoute><MobileScanner /></ProtectedRoute>} />

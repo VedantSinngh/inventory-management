@@ -511,6 +511,7 @@ Rules:
         currentStock: product.stock,
         suggestedQuantity: qty,
         approvedQuantity: qty, // Pre-filled default
+        maxAllowed,
         clamped: isClamped,
         originalQuantity,
         supplier: supplierId,
@@ -635,6 +636,7 @@ Rules:
         currentStock: item.currentStock,
         suggestedQuantity: suggestedQty,
         approvedQuantity: suggestedQty,
+        maxAllowed,
         clamped: isClamped,
         originalQuantity,
         supplier: item.supplier?.id || null,
