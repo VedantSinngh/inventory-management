@@ -28,7 +28,7 @@ export const validateEnv = () => {
     'JWT_EXPIRES_IN': { default: '30d' },
     'MAPS_PROVIDER': { default: 'osm' },
     'LLM_PROVIDER': { default: 'groq' },
-    'LLM_MODEL': { default: 'llama-3.3-70b-versatile' },
+    'LLM_MODEL': { default: 'openai/gpt-oss-120b' },
     'LLM_ENDPOINT': { default: 'https://api.groq.com/openai/v1' },
     'LOG_LEVEL': { default: 'info' },
     'REDIS_URL': { default: null },
@@ -40,7 +40,9 @@ export const validateEnv = () => {
     'SENDGRID_API_KEY': { default: null },
     'SENDGRID_FROM_EMAIL': { default: null },
     'MAPBOX_API_KEY': { default: null },
-    'GOOGLE_MAPS_API_KEY': { default: null }
+    'GOOGLE_MAPS_API_KEY': { default: null },
+    'REPLENISHMENT_MAX_PRODUCTS': { default: '10' },
+    'REPLENISHMENT_MODEL': { default: 'openai/gpt-oss-120b' }
   };
 
   const missingVars = [];

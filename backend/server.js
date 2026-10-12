@@ -26,6 +26,7 @@ import returnRoutes from './routes/returnRoutes.js';
 import financeRoutes from './routes/financeRoutes.js';
 import inventoryRoutes from './routes/inventoryRoutes.js';
 import importRoutes from './routes/importRoutes.js';
+import replenishmentRoutes from './routes/replenishmentRoutes.js';
 import { startExchangeRateCron } from './services/currencyCronService.js';
 import Product from './models/Product.js';
 import Order from './models/Order.js';
@@ -104,6 +105,7 @@ app.use('/api/returns', returnRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/import', importRoutes);
+app.use('/api/replenishment', replenishmentRoutes);
 
 // Analytics endpoint
 app.get('/api/analytics/reorder-suggestions', protect, async (req, res) => {
